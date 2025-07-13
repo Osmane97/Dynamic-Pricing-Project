@@ -29,11 +29,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # Install Xvfb and Chromium browser + driver
-    - name: Install Xvfb and Chromium
+    - name: Install Xvfb and Google Chrome
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb chromium-browser chromium-chromedriver
+        sudo apt-get install -y xvfb
+        # Install Google Chrome stable
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
 
     # Start Xvfb on display :99
     - name: Start Xvfb
