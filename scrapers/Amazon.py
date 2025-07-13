@@ -1,63 +1,67 @@
+from time import sleep
 
 from selenium.webdriver.chrome.options import Options
-from selenium.common import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
-from time import sleep
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 import datetime
 import mysql.connector
 
 URL = 'https://www.amazon.co.uk/'
 
-#Keep chrome open
-#chrome_option = webdriver.ChromeOptions()
-
-chrome_option = Options()
-#chrome_option.add_experimental_option('detach', True)
-
-chrome_option.add_argument('--headless')  # Run in headless mode
+# Keep chrome open
+chrome_option = webdriver.ChromeOptions()
+#chrome_option.add_argument('--headless')  # Run in headless mode
 chrome_option.add_argument('--no-sandbox')  # Required for CI
 chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
 
-
-driver = webdriver.Chrome(options = chrome_option)
-#driver.maximize_window() #open it full window because sometimes an error occur due to hiding button
+driver = webdriver.Chrome(options=chrome_option)
 driver.get(URL)
 
-# Continue shopping button appears sometimes
+wait = WebDriverWait(driver, 10)  # 10 seconds timeout
+
+# Continue shopping button appears sometimes, wait until clickable
 try:
-    continue_shopping = driver.find_element(By.XPATH, '/html/body/div/div[1]/div[3]/div/div/form/div/div/span/span/button')
+    continue_shopping = wait.until(
+        EC.element_to_be_clickable((By.XPATH, '/html/body/div/div[1]/div[3]/div/div/form/div/div/span/span/button'))
+    )
     continue_shopping.click()
-    sleep(1)
-except NoSuchElementException:
+except (TimeoutException, NoSuchElementException):
     pass
 
-# decline cookies if there's any
+# Decline cookies if present
 try:
-    decline_cookies = driver.find_element(By.ID, 'sp-cc-rejectall-link')
+    decline_cookies = wait.until(
+        EC.element_to_be_clickable((By.ID, 'sp-cc-rejectall-link'))
+    )
     decline_cookies.click()
-    sleep(2)
-except NoSuchElementException:
+except (TimeoutException, NoSuchElementException):
     pass
 
-electronics_btn = driver.find_element(By.LINK_TEXT, 'Electronics').click()
-sleep(2)
+# Navigate through menus using waits instead of sleeps
+try:
+    electronics_btn = wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, 'Electronics')))
+    electronics_btn.click()
 
-computer_Accessories_btn = driver.find_element(By.LINK_TEXT, 'Computers & Accessories').click()
-sleep(2)
+    computer_accessories_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.nav-a[aria-label='Computers & Accessories']")))
+    computer_accessories_btn.click()
 
+    components_btn = wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, 'Components')))
+    components_btn.click()
 
-components_btn = driver.find_element(By.XPATH, '//*[@id="s-refinements"]/div[1]/ul/li[4]/span/a/span').click()
-sleep(2)
+    graphics_cards_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="s-refinements"]/div[1]/ul/li[10]/span/a/span')))
+    graphics_cards_btn.click()
 
-Graphics_cards_btn = driver.find_element(By.XPATH, '//*[@id="s-refinements"]/div[1]/ul/li[10]/span/a/span').click()
-sleep(2)
+    features_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="a-autoid-0"]/span')))
+    features_btn.click()
 
-features_btn = driver.find_element(By.XPATH, '//*[@id="a-autoid-0"]/span').click()
-sleep(1)
+    best_seller_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'li[aria-labelledby="s-result-sort-select_5"]')))
+    best_seller_btn.click()
 
-best_seller_btn = driver.find_element(By.CSS_SELECTOR, 'li[aria-labelledby="s-result-sort-select_5"]').click()
-
+except TimeoutException:
+    print("One of the navigation elements did not appear.")
  #This will return a list of items
 
 
@@ -193,7 +197,7 @@ def processing_all_products():
         sleep(2)
 
         #getting scraping timestamp for each product
-        scrape_time = datetime.datetime.now().strftime("%x %X")
+        scrape_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         #Get all product details
         product_overview = product_information()
