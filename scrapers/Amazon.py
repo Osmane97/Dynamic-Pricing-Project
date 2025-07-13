@@ -14,6 +14,12 @@ URL = 'https://www.amazon.co.uk/'
 # Keep chrome open
 chrome_option = webdriver.ChromeOptions()
 #chrome_option.add_argument('--headless')  # Run in headless mode
+#chrome_option.add_argument('--disable-gpu')
+#chrome_option.add_argument('window-size=1920,1080')
+# Optional: spoof user agent to avoid detection
+# chrome_option.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+#                             'AppleWebKit/537.36 (KHTML, like Gecko) '
+#                             'Chrome/114.0.0.0 Safari/537.36')
 chrome_option.add_argument('--no-sandbox')  # Required for CI
 chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
 
@@ -191,7 +197,8 @@ def processing_all_products():
     for item in filtered_items:
         # Exctract the Identifier of the product
         asin = item.get_attribute('data-asin')  # get unique serial number
-
+        if not asin:
+            continue
         #Go inside product
         item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
         sleep(2)
@@ -217,7 +224,7 @@ def processing_all_products():
 
 
 page_number = 1
-while page_number <= 3 :
+while page_number <= 1 :
     processing_all_products()
     try:
         next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")

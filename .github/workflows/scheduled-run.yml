@@ -29,5 +29,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run Amazon.py
+    # Install Xvfb and Chromium browser + driver
+    - name: Install Xvfb and Chromium
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb chromium-browser chromium-chromedriver
+
+    # Start Xvfb on display :99
+    - name: Start Xvfb
+      run: Xvfb :99 -screen 0 1920x1080x24 &
+      # Note: `&` runs it in background
+
+    # Run your Selenium script with DISPLAY environment variable set
+    - name: Run Amazon.py with DISPLAY
+      env:
+        DISPLAY: :99
       run: python scrapers/Amazon.py
