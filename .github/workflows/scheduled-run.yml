@@ -36,4 +36,4 @@ jobs:
 
     - name: Run Amazon.py
       run: |
-        python Amazon.py
+        python scrapers/Amazon.py
