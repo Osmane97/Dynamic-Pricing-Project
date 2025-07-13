@@ -2,7 +2,6 @@ name: Run Script Every 6 Hours
 
 on:
   schedule:
-    # Runs every 6 hours
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
@@ -13,40 +12,67 @@ jobs:
   run-script:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: amazon
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: Check Python version
-      run: python --version
+      - name: Check Python version
+        run: python --version
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Install Xvfb and Google Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-        # Install Google Chrome stable
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
+      - name: Install Xvfb, Google Chrome, and MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb wget gnupg2 mysql-client
+          # Install Google Chrome stable
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
 
+      - name: Start Xvfb
+        run: Xvfb :99 -screen 0 1920x1080x24 &
 
-    # Start Xvfb on display :99
-    - name: Start Xvfb
-      run: Xvfb :99 -screen 0 1920x1080x24 &
-      # Note: `&` runs it in background
+      - name: Wait for MySQL to be healthy
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 --silent; then
+              echo "MySQL is up"
+              break
+            else
+              echo "Waiting for MySQL..."
+              sleep 2
+            fi
+          done
 
-    # Run your Selenium script with DISPLAY environment variable set
-    - name: Run Amazon.py with DISPLAY
-      env:
-        DISPLAY: :99
-      run: python scrapers/Amazon.py
+      - name: Run Amazon.py with DISPLAY and MySQL env vars
+        env:
+          DISPLAY: :99
+          MYSQL_HOST: '127.0.0.1'
+          MYSQL_PORT: 3306
+          MYSQL_USER: "root"
+          MYSQL_PASSWORD: "root"
+          MYSQL_DATABASE: "amazon"
+        run: python scrapers/Amazon.py
