@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 from time import sleep
 from selenium import webdriver
 import datetime
-
+import mysql.connector
 
 URL = 'https://www.amazon.co.uk/'
 
@@ -15,7 +15,7 @@ URL = 'https://www.amazon.co.uk/'
 chrome_option = Options()
 #chrome_option.add_experimental_option('detach', True)
 
-#chrome_option.add_argument('--headless')  # Run in headless mode
+chrome_option.add_argument('--headless')  # Run in headless mode
 chrome_option.add_argument('--no-sandbox')  # Required for CI
 chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
 
@@ -231,7 +231,7 @@ while page_number <= 3 :
 print(all_products)
 
 
-import mysql.connector
+
 #connect to mysql database
 connection = mysql.connector.connect(
     host='localhost',
