@@ -14,6 +14,7 @@ chrome_option = webdriver.ChromeOptions()
 chrome_option.add_experimental_option('detach', True)
 
 driver = webdriver.Chrome(options = chrome_option)
+driver.maximize_window() #open it full window because sometimes an error occur due to hiding button
 driver.get(URL)
 
 # Continue shopping button appears sometimes
