@@ -43,8 +43,9 @@ except NoSuchElementException:
 electronics_btn = driver.find_element(By.LINK_TEXT, 'Electronics').click()
 sleep(2)
 
-computer_Accessories_btn = driver.find_element(By.CSS_SELECTOR, 'a[aria-label="Computers & Accessories"]').click()
+computer_Accessories_btn = driver.find_element(By.LINK_TEXT, 'Computers & Accessories').click()
 sleep(2)
+
 
 components_btn = driver.find_element(By.XPATH, '//*[@id="s-refinements"]/div[1]/ul/li[4]/span/a/span').click()
 sleep(2)
