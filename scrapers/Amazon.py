@@ -107,7 +107,10 @@ def product_information():
     if ',' in price_whole:
         price_whole = price_whole.replace(',', '')
     price_fraction = driver.find_element(By.CLASS_NAME, 'a-price-fraction').text
-    actual_price = float(price_whole + '.' + price_fraction)
+    if price_whole and price_fraction:
+        actual_price = float(price_whole + '.' + price_fraction)
+    else:
+        actual_price = None
 
     # check and get discount if any
     try:
@@ -149,7 +152,7 @@ def product_information():
     }
 
 #parse = analysing, taking a messy string, then extract and clean the structured result in a dictionary
-#passing details_keys_split as a parameter is optional, doing this can let us to use the function for totally different type of product
+#passing details_keys_split as a parameter is optional, doing this can let us  use the function for totally different type of product
 def parse_product_details(details_keys_split):
     product_specs = {}
     try:
