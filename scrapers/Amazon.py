@@ -49,15 +49,9 @@ sleep(1)
 
 best_seller_btn = driver.find_element(By.CSS_SELECTOR, 'li[aria-labelledby="s-result-sort-select_5"]').click()
 
-items = driver.find_elements(By.CSS_SELECTOR, 'div[role="listitem"]') #This will return a list of items
+ #This will return a list of items
 
 
-#filtered_items = [item for item in items if 'Sponsored' not in item.text or 'See options' not in item.text ]
-# # Exctract the Identifier of the product
-# asin = filtered_items[0].get_attribute('data-asin')  # get unique serial number
-# #Click on the item
-# filtered_items[0].find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]')
-# filtered_items[0].click()
 
 #Number of words for each key, purpose to split the string of each detail from there key
 details_keys_split = {
@@ -80,7 +74,7 @@ def product_information():
         # Exctract review stars
         customer_reviews = float(driver.find_element(By.XPATH, '//*[@id="acrPopover"]/span[1]/a/span').text)
     except NoSuchElementException:
-        customer_reviews = 'No review'
+        customer_reviews = None
     # Getting number of reviews
     try:
         reviews_number = driver.find_element(By.ID, 'acrCustomerReviewText').text
@@ -95,7 +89,7 @@ def product_information():
         last_month_sold = last_month_sold.split('+')
         last_month_sold = int(last_month_sold[0])
     except NoSuchElementException:
-        last_month_sold = 'unknown'
+        last_month_sold = None
 
     # Get the price currency
     currency = driver.find_element(By.CLASS_NAME, 'a-price-symbol').text
@@ -174,36 +168,150 @@ def parse_product_details(details_keys_split):
 
 all_products = {} #holding all product details under their asin
 
-filtered_items = [item for item in items if 'Sponsored' not in item.text and 'See options' not in item.text ]
+def processing_all_products():
+    items = driver.find_elements(By.CSS_SELECTOR, 'div[role="listitem"]')
+    filtered_items = [item for item in items if 'Sponsored' not in item.text and 'See options' not in item.text ]
+
+    for item in filtered_items:
+        # Exctract the Identifier of the product
+        asin = item.get_attribute('data-asin')  # get unique serial number
+
+        #Go inside product
+        item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
+        sleep(2)
+
+        #getting scraping timestamp for each product
+        scrape_time = datetime.datetime.now().strftime("%x %X")
+
+        #Get all product details
+        product_overview = product_information()
+        product_spec = parse_product_details(details_keys_split)
+
+        #combine both dictionaries under the ASIN
+        all_products[asin] = {
+            'scrape time': scrape_time,
+            'product overview': product_overview,
+            'product specifications': product_spec
+        }
+
+        #Go back to product list
+        driver.back()
+    return  all_products
 
 
 
+page_number = 1
+while page_number <= 3 :
+    processing_all_products()
+    try:
+        next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")
+        if next_page.is_enabled():
+            next_page.click()
+            page_number += 1
+            sleep(2)
+        else:
+            break
 
-for item in filtered_items:
-    # Exctract the Identifier of the product
-    asin = item.get_attribute('data-asin')  # get unique serial number
+    except NoSuchElementException:
+        break
 
-    #Go inside product
-    item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
-    sleep(2)
 
-    #getting scraping timestamp for each product
-    scrape_time = datetime.datetime.now().strftime("%x %X")
-
-    #Get all product details
-    product_overview = product_information()
-    product_spec = parse_product_details(details_keys_split)
-
-    #combine both dictionaries under the ASIN
-    all_products[asin] = {
-        'scrape time': scrape_time,
-        'product overview': product_overview,
-        'product specifications': product_spec
-    }
-
-    #Go back to product list
-    driver.back()
 
 print(all_products)
 
 
+import mysql.connector
+#connect to mysql database
+connection = mysql.connector.connect(
+    host='localhost',
+    port = 3306,
+    user="root",
+    password="root",
+    database="amazon"
+)
+
+#create a cursor object to execute sql queries like inserting data
+cursor = connection.cursor()
+
+# #excute insert statement to fill database
+for asin, product_data in all_products.items():
+    spec = product_data['product specifications']
+    overview = product_data['product overview']
+
+
+    insert_product_details = """
+        INSERT INTO product_details(
+        asin ,
+        original_price ,
+        series ,
+        item_model_number ,
+        brand ,
+        graphics_coprocessor ,
+        graphics_chipset_brand ,
+        graphics_RAM_type ,
+        graphics_card_RAM_size ,
+        memory_clock_speed ,
+        product_dimensions ,
+        resolution ,
+        wattage )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            original_price = IF(VALUES(original_price) <> original_price, VALUES(original_price), original_price),
+            series = IF(VALUES(series) <> series, VALUES(series), series),
+            item_model_number = IF(VALUES(item_model_number) <> item_model_number, VALUES(item_model_number), item_model_number),
+            brand = IF(VALUES(brand) <> brand, VALUES(brand), brand),
+            graphics_coprocessor = IF(VALUES(graphics_coprocessor) <> graphics_coprocessor, VALUES(graphics_coprocessor), graphics_coprocessor),
+            graphics_chipset_brand = IF(VALUES(graphics_chipset_brand) <> graphics_chipset_brand, VALUES(graphics_chipset_brand), graphics_chipset_brand),
+            graphics_RAM_type = IF(VALUES(graphics_RAM_type) <> graphics_RAM_type, VALUES(graphics_RAM_type), graphics_RAM_type),
+            graphics_card_RAM_size = IF(VALUES(graphics_card_RAM_size) <> graphics_card_RAM_size, VALUES(graphics_card_RAM_size), graphics_card_RAM_size),
+            memory_clock_speed = IF(VALUES(memory_clock_speed) <> memory_clock_speed, VALUES(memory_clock_speed), memory_clock_speed),
+            product_dimensions = IF(VALUES(product_dimensions) <> product_dimensions, VALUES(product_dimensions), product_dimensions),
+            resolution = IF(VALUES(resolution) <> resolution, VALUES(resolution), resolution),
+            wattage = IF(VALUES(wattage) <> wattage, VALUES(wattage), wattage)
+        """
+
+    cursor.execute(insert_product_details, (
+        asin,
+        overview['original price'],
+        spec['Series'],
+        spec['Item model number'],
+        spec['Brand'],
+        spec['Graphics Coprocessor'],
+        spec['Graphics Chipset Brand'],
+        spec['Graphics RAM Type'],
+        spec['Graphics Card Ram Size'],
+        spec['Memory Clock Speed'],
+        spec['Product Dimensions'],
+        spec['Resolution'],
+        spec['Wattage']
+
+
+    ))
+
+    insert_product_overview = """
+    INSERT INTO scrape_results (
+    scrape_time,
+    asin,
+    actual_price,
+    discount,
+    last_month_sold,
+    product_rating,
+    number_of_reviews)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+
+    cursor.execute(insert_product_overview,(
+        product_data['scrape time'],
+        asin,
+        overview['actual price'],
+        overview['discount %'],
+        overview['at least last month sold'],
+        overview['customer reviews'],
+        overview['reviews number']
+    ))
+
+    
+
+connection.commit()
+cursor.close()
+connection.close()
