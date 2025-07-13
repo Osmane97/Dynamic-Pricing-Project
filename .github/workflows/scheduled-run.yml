@@ -66,6 +66,10 @@ jobs:
               sleep 2
             fi
           done
+      - name: Run schema.sql to create database tables
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot amazon < schema.sql
+
 
       - name: Run Amazon.py with DISPLAY and MySQL env vars
         env:
