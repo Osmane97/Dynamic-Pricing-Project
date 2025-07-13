@@ -15,7 +15,7 @@ URL = 'https://www.amazon.co.uk/'
 chrome_option = Options()
 #chrome_option.add_experimental_option('detach', True)
 
-chrome_option.add_argument('--headless')  # Run in headless mode
+#chrome_option.add_argument('--headless')  # Run in headless mode
 chrome_option.add_argument('--no-sandbox')  # Required for CI
 chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
 

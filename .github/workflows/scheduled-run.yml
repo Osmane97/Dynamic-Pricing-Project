@@ -34,6 +34,10 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+
     - name: Run Amazon.py
       run: |
         python scrapers/Amazon.py
