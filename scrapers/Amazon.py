@@ -1,6 +1,5 @@
 from time import sleep
 
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -224,7 +223,7 @@ def processing_all_products():
 
 
 page_number = 1
-while page_number <= 1 :
+while page_number <= 5 :
     processing_all_products()
     try:
         next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")
