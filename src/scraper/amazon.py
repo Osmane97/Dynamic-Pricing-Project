@@ -8,6 +8,12 @@ from selenium import webdriver
 import datetime
 import mysql.connector
 
+import sys
+import pathlib
+
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[2]))
+from src import config
+
 URL = 'https://www.amazon.co.uk/'
 
 # Keep chrome open
@@ -245,11 +251,11 @@ print(all_products)
 
 #connect to mysql database
 connection = mysql.connector.connect(
-    host='127.0.0.1',
-    port = 3306,
-    user="root",
-    password="root",
-    database="amazon"
+    host=config.MYSQL_HOST,
+    port=config.MYSQL_PORT,
+    user=config.MYSQL_USER,
+    password=config.MYSQL_PASSWORD,
+    database=config.MYSQL_DATABASE,
 )
 
 #create a cursor object to execute sql queries like inserting data

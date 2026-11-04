@@ -21,14 +21,15 @@ The pipeline includes:
 ** This system helps e-commerce analysts and tech buyers monitor price trends and identify good deals.
 
 
-Files:
-scraper file that Contains (Amazon.py) the full scraping code to extract GPU data from Amazon.
+Project structure:
+- src/scraper/amazon.py: the Selenium scraper that collects GPU data from Amazon
+- src/config.py: reads settings from environment variables (see .env.example)
+- docs/Amazon_ER_Diagram.drawio.png: the original ER diagram
+- dashboards/Amazon_GPU_Pricing_Tracker_Dashboard.pbix: Power BI dashboard
+- schema.sql: the original MySQL schema (to be replaced by BigQuery)
+- .github/workflows/scheduled-run.yml: scheduled run
 
-schema.sql — Defines the database tables and their relationships.
-
-Amazon_GPU_Pricing_Tracker_Dashboard.pbix — Power BI dashboard file to explore the collected data interactively.
-
-
-Next Steps:
--	Automate the scraper to run daily using cloud services like AWS or Azure.
--	Add alerting features for price drops.
+Next steps:
+- Move storage from MySQL to BigQuery
+- Add dbt models (staging, dimensions, fact table) with tests and docs
+- Schedule the full pipeline with GitHub Actions
