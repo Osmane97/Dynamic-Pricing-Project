@@ -79,4 +79,5 @@ jobs:
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "root"
           MYSQL_DATABASE: "amazon"
-        run: python scrapers/Amazon.py
+          AMAZON_LISTING_URL: ${{vars.AMAZON_LISTING_URL }}
+        run: python src/scraper/amazon.py
