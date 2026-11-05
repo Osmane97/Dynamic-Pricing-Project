@@ -93,18 +93,19 @@ def product_information():
     except NoSuchElementException:
         last_month_sold = None
 
-    # Get the price currency
-    currency = driver.find_element(By.CLASS_NAME, 'a-price-symbol').text
+    try:
+        # Get the price currency
+        currency = driver.find_element(By.CLASS_NAME, 'a-price-symbol').text
 
-    # Get the Price
-    price_whole = driver.find_element(By.CLASS_NAME, 'a-price-whole').text
-    if ',' in price_whole:
-        price_whole = price_whole.replace(',', '')
-    price_fraction = driver.find_element(By.CLASS_NAME, 'a-price-fraction').text
-    if price_whole and price_fraction:
+        # Get the Price
+        price_whole = driver.find_element(By.CLASS_NAME, 'a-price-whole').text.replace(',', '')
+        price_fraction = driver.find_element(By.CLASS_NAME, 'a-price-fraction').text
         actual_price = float(price_whole + '.' + price_fraction)
-    else:
+    except (NoSuchElementException, ValueError):
+        currency = None
         actual_price = None
+
+    
 
     # check and get discount if any
     try:
@@ -182,28 +183,38 @@ def processing_all_products():
         asin = item.get_attribute('data-asin')  # get unique serial number
         if not asin:
             continue
-        #Go inside product
-        item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
-        sleep(2)
 
-        #getting scraping timestamp for each product
-        scrape_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        opened = False  # did we navigate into the product page?
+        try:
+            #Go inside product
+            item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
+            opened = True
+            sleep(2)
 
-        #Get all product details
-        product_overview = product_information()
-        product_spec = parse_product_details(details_keys_split)
+            #getting scraping timestamp for each product
+            scrape_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        #combine both dictionaries under the ASIN
-        all_products[asin] = {
-            'scrape time': scrape_time,
-            'product overview': product_overview,
-            'product specifications': product_spec
-        }
+            #Get all product details
+            product_overview = product_information()
+            if product_overview['actual price'] is None:
+                print(f"Skipped {asin}: no price found")
+                continue
 
-        #Go back to product list
-        driver.back()
+            product_spec = parse_product_details(details_keys_split)
+
+            #combine both dictionaries under the ASIN
+            all_products[asin] = {
+                'scrape time': scrape_time,
+                'product overview': product_overview,
+                'product specifications': product_spec
+            }
+        except Exception as e:
+            print(f"Skipped {asin}: {type(e).__name__}: {e}")
+        finally:
+            #Go back to product list, only if we actually left it
+            if opened:
+                driver.back()
     return  all_products
-
 
 
 page_number = 1
