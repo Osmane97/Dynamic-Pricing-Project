@@ -16,15 +16,9 @@ from src import config
 
 URL = 'https://www.amazon.co.uk/'
 
+
 # Keep chrome open
 chrome_option = webdriver.ChromeOptions()
-#chrome_option.add_argument('--headless')  # Run in headless mode
-#chrome_option.add_argument('--disable-gpu')
-#chrome_option.add_argument('window-size=1920,1080')
-# Optional: spoof user agent to avoid detection
-# chrome_option.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-#                             'AppleWebKit/537.36 (KHTML, like Gecko) '
-#                             'Chrome/114.0.0.0 Safari/537.36')
 chrome_option.add_argument('--no-sandbox')  # Required for CI
 chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
 
@@ -51,31 +45,15 @@ try:
 except (TimeoutException, NoSuchElementException):
     pass
 
-# Navigate through menus using waits instead of sleeps
+
+driver.get(config.LISTING_URL)
 try:
-    electronics_btn = wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, 'Electronics')))
-    electronics_btn.click()
-
-    computer_accessories_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.nav-a[aria-label='Computers & Accessories']")))
-    computer_accessories_btn.click()
-
-    components_btn = wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, 'Components')))
-    components_btn.click()
-
-    graphics_cards_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="s-refinements"]/div[1]/ul/li[10]/span/a/span')))
-    graphics_cards_btn.click()
-
-    features_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="a-autoid-0"]/span')))
-    features_btn.click()
-
-    best_seller_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'li[aria-labelledby="s-result-sort-select_5"]')))
-    best_seller_btn.click()
-
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="listitem"]')))
 except TimeoutException:
-    print("One of the navigation elements did not appear.")
- #This will return a list of items
-
-
+    print("Listing page did not load. URL:", driver.current_url)
+    print("Page title:", driver.title)
+    driver.quit()
+    sys.exit(1)
 
 #Number of words for each key, purpose to split the string of each detail from there key
 details_keys_split = {
@@ -103,7 +81,7 @@ def product_information():
     try:
         reviews_number = driver.find_element(By.ID, 'acrCustomerReviewText').text
         reviews_number = reviews_number.split(' ')
-        reviews_number = int(reviews_number[0].replace(',', ''))
+        reviews_number = int(reviews_number[0].replace(',', '').strip('()'))
     except NoSuchElementException:
         reviews_number = 0  # The product isn't rated
 
