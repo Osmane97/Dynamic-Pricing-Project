@@ -80,9 +80,5 @@ jobs:
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "root"
           MYSQL_DATABASE: "amazon"
-<<<<<<< HEAD
-        run: python src/scraper/amazon.py
-=======
           AMAZON_LISTING_URL: ${{vars.AMAZON_LISTING_URL }}
         run: python -m src.main
->>>>>>> restructure
