@@ -6,54 +6,50 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 import datetime
-import mysql.connector
 
-import sys
-import pathlib
-
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[2]))
 from src import config
 
 URL = 'https://www.amazon.co.uk/'
+MAX_PAGES = 5
 
 
-# Keep chrome open
-chrome_option = webdriver.ChromeOptions()
-chrome_option.add_argument('--no-sandbox')  # Required for CI
-chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
-
-driver = webdriver.Chrome(options=chrome_option)
-driver.get(URL)
-
-wait = WebDriverWait(driver, 10)  # 10 seconds timeout
-
-# Continue shopping button appears sometimes, wait until clickable
-try:
-    continue_shopping = wait.until(
-        EC.element_to_be_clickable((By.XPATH, '/html/body/div/div[1]/div[3]/div/div/form/div/div/span/span/button'))
-    )
-    continue_shopping.click()
-except (TimeoutException, NoSuchElementException):
-    pass
-
-# Decline cookies if present
-try:
-    decline_cookies = wait.until(
-        EC.element_to_be_clickable((By.ID, 'sp-cc-rejectall-link'))
-    )
-    decline_cookies.click()
-except (TimeoutException, NoSuchElementException):
-    pass
+def create_driver():
+    chrome_option = webdriver.ChromeOptions()
+    chrome_option.add_argument('--no-sandbox')  # Required for CI
+    chrome_option.add_argument('--disable-dev-shm-usage')  # Fixes shared memory issues
+    return webdriver.Chrome(options=chrome_option)
 
 
-driver.get(config.LISTING_URL)
-try:
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="listitem"]')))
-except TimeoutException:
-    print("Listing page did not load. URL:", driver.current_url)
-    print("Page title:", driver.title)
-    driver.quit()
-    sys.exit(1)
+def open_listing_page(driver):
+    driver.get(URL)
+    wait = WebDriverWait(driver, 10)  # 10 seconds timeout
+
+    # Continue shopping button appears sometimes, wait until clickable
+    try:
+        continue_shopping = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '/html/body/div/div[1]/div[3]/div/div/form/div/div/span/span/button'))
+        )
+        continue_shopping.click()
+    except (TimeoutException, NoSuchElementException):
+        pass
+
+    # Decline cookies if present
+    try:
+        decline_cookies = wait.until(
+            EC.element_to_be_clickable((By.ID, 'sp-cc-rejectall-link'))
+        )
+        decline_cookies.click()
+    except (TimeoutException, NoSuchElementException):
+        pass
+
+    driver.get(config.LISTING_URL)
+    try:
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="listitem"]')))
+    except TimeoutException:
+        print("Listing page did not load. URL:", driver.current_url)
+        print("Page title:", driver.title)
+        raise
+
 
 #Number of words for each key, purpose to split the string of each detail from there key
 details_keys_split = {
@@ -71,7 +67,7 @@ details_keys_split = {
 }
 
 
-def product_information():
+def product_information(driver):
     try:
         # Exctract review stars
         customer_reviews = float(driver.find_element(By.XPATH, '//*[@id="acrPopover"]/span[1]/a/span').text)
@@ -148,7 +144,7 @@ def product_information():
 
 #parse = analysing, taking a messy string, then extract and clean the structured result in a dictionary
 #passing details_keys_split as a parameter is optional, doing this can let us  use the function for totally different type of product
-def parse_product_details(details_keys_split):
+def parse_product_details(driver, details_keys_split):
     product_specs = {}
     try:
         product_details = driver.find_element(By.CSS_SELECTOR, 'table[id="productDetails_techSpec_section_1"]').text
@@ -172,9 +168,11 @@ def parse_product_details(details_keys_split):
 
     return product_specs
 
-all_products = {} #holding all product details under their asin
 
-def processing_all_products():
+
+def processing_all_products(driver):
+    products = {}
+
     items = driver.find_elements(By.CSS_SELECTOR, 'div[role="listitem"]')
     filtered_items = [item for item in items if 'Sponsored' not in item.text and 'See options' not in item.text ]
 
@@ -195,15 +193,15 @@ def processing_all_products():
             scrape_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             #Get all product details
-            product_overview = product_information()
+            product_overview = product_information(driver)
             if product_overview['actual price'] is None:
                 print(f"Skipped {asin}: no price found")
                 continue
 
-            product_spec = parse_product_details(details_keys_split)
+            product_spec = parse_product_details(driver, details_keys_split)
 
             #combine both dictionaries under the ASIN
-            all_products[asin] = {
+            products[asin] = {
                 'scrape time': scrape_time,
                 'product overview': product_overview,
                 'product specifications': product_spec
@@ -214,121 +212,29 @@ def processing_all_products():
             #Go back to product list, only if we actually left it
             if opened:
                 driver.back()
-    return  all_products
+    return  products
 
 
-page_number = 1
-while page_number <= 5 :
-    processing_all_products()
+def scrape():
+    driver = create_driver()
     try:
-        next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")
-        if next_page.is_enabled():
-            next_page.click()
-            page_number += 1
-            sleep(2)
-        else:
-            break
+        open_listing_page(driver)
 
-    except NoSuchElementException:
-        break
+        all_products = {}
+        page_number = 1
+        while page_number <= MAX_PAGES:
+            all_products.update(processing_all_products(driver))
+            try:
+                next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")
+                if next_page.is_enabled():
+                    next_page.click()
+                    page_number += 1
+                    sleep(2)
+                else:
+                    break
+            except NoSuchElementException:
+                break
 
-
-
-print(all_products)
-
-
-
-#connect to mysql database
-connection = mysql.connector.connect(
-    host=config.MYSQL_HOST,
-    port=config.MYSQL_PORT,
-    user=config.MYSQL_USER,
-    password=config.MYSQL_PASSWORD,
-    database=config.MYSQL_DATABASE,
-)
-
-#create a cursor object to execute sql queries like inserting data
-cursor = connection.cursor()
-
-# #excute insert statement to fill database
-for asin, product_data in all_products.items():
-    spec = product_data['product specifications']
-    overview = product_data['product overview']
-
-
-    insert_product_details = """
-        INSERT INTO product_details(
-        asin ,
-        original_price ,
-        series ,
-        item_model_number ,
-        brand ,
-        graphics_coprocessor ,
-        graphics_chipset_brand ,
-        graphics_RAM_type ,
-        graphics_card_RAM_size ,
-        memory_clock_speed ,
-        product_dimensions ,
-        resolution ,
-        wattage )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            original_price = IF(VALUES(original_price) <> original_price, VALUES(original_price), original_price),
-            series = IF(VALUES(series) <> series, VALUES(series), series),
-            item_model_number = IF(VALUES(item_model_number) <> item_model_number, VALUES(item_model_number), item_model_number),
-            brand = IF(VALUES(brand) <> brand, VALUES(brand), brand),
-            graphics_coprocessor = IF(VALUES(graphics_coprocessor) <> graphics_coprocessor, VALUES(graphics_coprocessor), graphics_coprocessor),
-            graphics_chipset_brand = IF(VALUES(graphics_chipset_brand) <> graphics_chipset_brand, VALUES(graphics_chipset_brand), graphics_chipset_brand),
-            graphics_RAM_type = IF(VALUES(graphics_RAM_type) <> graphics_RAM_type, VALUES(graphics_RAM_type), graphics_RAM_type),
-            graphics_card_RAM_size = IF(VALUES(graphics_card_RAM_size) <> graphics_card_RAM_size, VALUES(graphics_card_RAM_size), graphics_card_RAM_size),
-            memory_clock_speed = IF(VALUES(memory_clock_speed) <> memory_clock_speed, VALUES(memory_clock_speed), memory_clock_speed),
-            product_dimensions = IF(VALUES(product_dimensions) <> product_dimensions, VALUES(product_dimensions), product_dimensions),
-            resolution = IF(VALUES(resolution) <> resolution, VALUES(resolution), resolution),
-            wattage = IF(VALUES(wattage) <> wattage, VALUES(wattage), wattage)
-        """
-
-    cursor.execute(insert_product_details, (
-        asin,
-        overview['original price'],
-        spec['Series'],
-        spec['Item model number'],
-        spec['Brand'],
-        spec['Graphics Coprocessor'],
-        spec['Graphics Chipset Brand'],
-        spec['Graphics RAM Type'],
-        spec['Graphics Card Ram Size'],
-        spec['Memory Clock Speed'],
-        spec['Product Dimensions'],
-        spec['Resolution'],
-        spec['Wattage']
-
-
-    ))
-
-    insert_product_overview = """
-    INSERT INTO scrape_results (
-    scrape_time,
-    asin,
-    actual_price,
-    discount,
-    last_month_sold,
-    product_rating,
-    number_of_reviews)
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """
-
-    cursor.execute(insert_product_overview,(
-        product_data['scrape time'],
-        asin,
-        overview['actual price'],
-        overview['discount %'],
-        overview['at least last month sold'],
-        overview['customer reviews'],
-        overview['reviews number']
-    ))
-
-    
-
-connection.commit()
-cursor.close()
-connection.close()
+        return all_products
+    finally:
+        driver.quit()

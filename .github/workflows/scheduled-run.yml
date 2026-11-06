@@ -80,4 +80,4 @@ jobs:
           MYSQL_PASSWORD: "root"
           MYSQL_DATABASE: "amazon"
           AMAZON_LISTING_URL: ${{vars.AMAZON_LISTING_URL }}
-        run: python src/scraper/amazon.py
+        run: python -m src.main
