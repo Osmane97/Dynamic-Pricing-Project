@@ -22,6 +22,7 @@ def create_driver():
 
 def open_listing_page(driver):
     driver.get(URL)
+
     wait = WebDriverWait(driver, 10)  # 10 seconds timeout
 
     # Continue shopping button appears sometimes, wait until clickable
@@ -170,23 +171,45 @@ def parse_product_details(driver, details_keys_split):
 
 
 
-def processing_all_products(driver):
+def get_asins_on_page(driver):
+    items = driver.find_elements(By.CSS_SELECTOR, 'div[role="listitem"]')
+    filtered_items = [item for item in items if 'Sponsored' not in item.text and 'See options' not in item.text]
+    asins = [item.get_attribute('data-asin') for item in filtered_items]
+    return [asin for asin in asins if asin]  # drop empty ASINs
+
+
+def collect_asins(driver):
+    asins = set()  # a set ignores duplicates across pages
+    wait = WebDriverWait(driver, 10)
+
+    page_number = 1
+    while page_number <= MAX_PAGES:
+        # The next button loads last, so once it's here the page's products are ready
+        try:
+            next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.s-pagination-next')))
+        except TimeoutException:
+            print(f"Page {page_number} did not finish loading, stopping here")
+            break
+
+        asins.update(get_asins_on_page(driver))
+
+        # On the last results page the button is a disabled <span>, not a link
+        if page_number == MAX_PAGES or next_button.tag_name != 'a':
+            break
+
+        next_button.click()
+        wait.until(EC.staleness_of(next_button))  # the old page is gone
+        page_number += 1
+
+    return asins
+
+
+def scrape_products(driver, asins):
     products = {}
 
-    items = driver.find_elements(By.CSS_SELECTOR, 'div[role="listitem"]')
-    filtered_items = [item for item in items if 'Sponsored' not in item.text and 'See options' not in item.text ]
-
-    for item in filtered_items:
-        # Exctract the Identifier of the product
-        asin = item.get_attribute('data-asin')  # get unique serial number
-        if not asin:
-            continue
-
-        opened = False  # did we navigate into the product page?
+    for asin in asins:
         try:
-            #Go inside product
-            item.find_element(By.CSS_SELECTOR, 'div[data-cy="title-recipe"]').click()
-            opened = True
+            driver.get(f"{URL}dp/{asin}")
             sleep(2)
 
             #getting scraping timestamp for each product
@@ -208,33 +231,16 @@ def processing_all_products(driver):
             }
         except Exception as e:
             print(f"Skipped {asin}: {type(e).__name__}: {e}")
-        finally:
-            #Go back to product list, only if we actually left it
-            if opened:
-                driver.back()
-    return  products
+
+    return products
 
 
 def scrape():
     driver = create_driver()
     try:
         open_listing_page(driver)
-
-        all_products = {}
-        page_number = 1
-        while page_number <= MAX_PAGES:
-            all_products.update(processing_all_products(driver))
-            try:
-                next_page = driver.find_element(By.CSS_SELECTOR, "a.s-pagination-item.s-pagination-next")
-                if next_page.is_enabled():
-                    next_page.click()
-                    page_number += 1
-                    sleep(2)
-                else:
-                    break
-            except NoSuchElementException:
-                break
-
-        return all_products
+        asins = collect_asins(driver)
+        print(f"Found {len(asins)} products on the listing pages")
+        return scrape_products(driver, asins)
     finally:
         driver.quit()
