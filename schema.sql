@@ -3,15 +3,15 @@ CREATE TABLE IF NOT EXISTS product_details (
     original_price FLOAT NOT NULL,
     series VARCHAR(100),
     item_model_number VARCHAR(100),
-    brand VARCHAR(20),
-    graphics_coprocessor VARCHAR(40),
-    graphics_chipset_brand VARCHAR(20),
+    brand VARCHAR(100),
+    graphics_coprocessor VARCHAR(100),
+    graphics_chipset_brand VARCHAR(100),
     graphics_RAM_type VARCHAR(100),
-    graphics_card_RAM_size VARCHAR(10),
-    memory_clock_speed VARCHAR(20),
-    product_dimensions VARCHAR(50),
-    resolution VARCHAR(30),
-    wattage VARCHAR(10)
+    graphics_card_RAM_size VARCHAR(50),
+    memory_clock_speed VARCHAR(50),
+    product_dimensions VARCHAR(100),
+    resolution VARCHAR(50),
+    wattage VARCHAR(50)
 );
 
 CREATE TABLE IF NOT EXISTS scrape_results (
