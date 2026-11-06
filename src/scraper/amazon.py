@@ -52,19 +52,20 @@ def open_listing_page(driver):
         raise
 
 
-#Number of words for each key, purpose to split the string of each detail from there key
-details_keys_split = {
-    'Brand': 1,
-    'Product Dimensions': 2,
-    'Item model number': 3,
-    'Series': 1,
-    'Resolution': 1,
-    'Memory Clock Speed': 3,
-    'Graphics Coprocessor': 2,
-    'Graphics Chipset Brand': 3,
-    'Graphics RAM Type': 3,
-    'Graphics Card Ram Size': 4,
-    'Wattage': 1
+# Number of words for each key, purpose to split the string of each detail from there key
+# Amazon's label for each spec. Some products use a different label for the same thing
+SPEC_LABELS = {
+    'Brand': ['brand name', 'brand'],
+    'Series': ['gpu series', 'series'],
+    'Item model number': ['model number', 'item model number'],
+    'Resolution': ['display maximum resolution', 'maximum display resolution', 'resolution'],
+    'Memory Clock Speed': ['memory clock speed'],
+    'Graphics Coprocessor': ['graphics coprocessor'],
+    'Graphics Chipset Brand': ['video processor', 'graphics chipset brand'],
+    'Graphics RAM Type': ['graphics ram type'],
+    'Graphics Card Ram Size': ['graphics card ram', 'graphics card ram size', 'graphics ram size'],
+    'Product Dimensions': ['item dimensions l x w', 'product dimensions', 'item dimensions'],
+    'Wattage': ['wattage'],
 }
 
 
@@ -103,34 +104,22 @@ def product_information(driver):
         actual_price = None
 
     
-
-    # check and get discount if any
-    try:
-        discount_text = driver.find_element(By.XPATH,
-                                            '//*[@id="corePriceDisplay_desktop_feature_div"]/div[1]/span[2]').text
-        discount_str = discount_text.replace('-', '').replace('%', '').strip()
+    # Only a visible savings badge counts. Some pages have a hidden one for another offer
+    discount = 0
+    rrp_price = actual_price
+    badges = driver.find_elements(By.CSS_SELECTOR, '#corePriceDisplay_desktop_feature_div .apex-savings-container')
+    for badge in badges:
+        discount_str = badge.text.replace('-', '').replace('%', '').strip()
         if discount_str.isdigit():
             discount = int(discount_str)
-        else:
-            discount = 0
-    except NoSuchElementException:
-        discount = 0
+            break
 
-    # get recommended retail price (original price) if any
-    try:
-        rrp_price_text = driver.find_element(By.XPATH,
-                                             '//*[@id="corePriceDisplay_desktop_feature_div"]/div[2]/span/span[1]/span[2]/span/span[2]').text
-        if rrp_price_text == '':
-            rrp_price = actual_price
-        else:
-                rrp_price_text = float(rrp_price_text.replace('£', '').replace(',','').strip())
-                rrp_price =float(rrp_price_text)
-        # try:
-        #     rrp_price = float(rrp_price_string)
-        # except NoSuchElementException:
-        #     rrp_price = actual_price
-    except NoSuchElementException:
-        rrp_price = actual_price
+    # The original price only appears when there's a discount
+    if discount:
+        basis_prices = driver.find_elements(By.CSS_SELECTOR, '#corePriceDisplay_desktop_feature_div .apex-basisprice-value .a-offscreen')
+        if basis_prices:
+            rrp_text = basis_prices[0].get_attribute('textContent')
+            rrp_price = float(rrp_text.replace('£', '').replace(',', '').strip())
 
 
     return {
@@ -145,29 +134,22 @@ def product_information(driver):
 
 #parse = analysing, taking a messy string, then extract and clean the structured result in a dictionary
 #passing details_keys_split as a parameter is optional, doing this can let us  use the function for totally different type of product
-def parse_product_details(driver, details_keys_split):
+def parse_product_details(driver):
+    # Read every row of Amazon's spec tables into {label: value}
+    page_specs = {}
+    for row in driver.find_elements(By.CSS_SELECTOR, '#prodDetails table.prodDetTable tr'):
+        cells = row.find_elements(By.CSS_SELECTOR, 'th, td')
+        if len(cells) == 2:
+            label = cells[0].get_attribute('textContent').strip().lower()
+            value = cells[1].get_attribute('textContent').replace('\u200e', '').strip()
+            page_specs[label] = value
+
+    # Pick the specs we want, using the first label that exists
     product_specs = {}
-    try:
-        product_details = driver.find_element(By.CSS_SELECTOR, 'table[id="productDetails_techSpec_section_1"]').text
-    except NoSuchElementException:
-      for key in details_keys_split:
-          product_specs[key] = 'unknown'
-      return product_specs
-
-
-    for detail in product_details.split('\n'):
-        for key, split_count in details_keys_split.items():
-            if detail.startswith(key):
-                split_count = details_keys_split[key]
-                info = detail.split(' ', split_count)
-                product_specs[key] = info[-1].strip()
-                break
-
-    for key in details_keys_split:
-        if key not in product_specs:
-            product_specs[key] = 'unknown'
-
+    for key, labels in SPEC_LABELS.items():
+        product_specs[key] = next((page_specs[label] for label in labels if label in page_specs), 'unknown')
     return product_specs
+
 
 
 
@@ -213,7 +195,7 @@ def scrape_products(driver, asins):
             sleep(2)
 
             #getting scraping timestamp for each product
-            scrape_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            scrape_time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
             #Get all product details
             product_overview = product_information(driver)
@@ -221,7 +203,7 @@ def scrape_products(driver, asins):
                 print(f"Skipped {asin}: no price found")
                 continue
 
-            product_spec = parse_product_details(driver, details_keys_split)
+            product_spec = parse_product_details(driver)
 
             #combine both dictionaries under the ASIN
             products[asin] = {

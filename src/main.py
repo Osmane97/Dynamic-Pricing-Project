@@ -1,4 +1,4 @@
-from src.load.mysql_loader import load
+from src.load.bigquery_loader import load
 from src.scraper.amazon import scrape
 
 
