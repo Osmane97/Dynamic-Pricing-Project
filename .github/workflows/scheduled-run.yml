@@ -7,78 +7,46 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: amazon
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/556213692967/locations/global/workloadIdentityPools/github/providers/github-repo
+          service_account: amazon-loader@dynamic-pricing-tracker.iam.gserviceaccount.com
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Check Python version
-        run: python --version
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Xvfb, Google Chrome, and MySQL client
+      - name: Install Xvfb and Google Chrome
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb wget mysql-client
-          # Install Google Chrome stable
+          sudo apt-get install -y xvfb wget
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
           # Remove the preinstalled chromedriver so Selenium downloads the matching version
           sudo rm -f /usr/bin/chromedriver
 
-
       - name: Start Xvfb
         run: Xvfb :99 -screen 0 1920x1080x24 &
 
-      - name: Wait for MySQL to be healthy
-        run: |
-          for i in {1..30}; do
-            if mysqladmin ping -h 127.0.0.1 --silent; then
-              echo "MySQL is up"
-              break
-            else
-              echo "Waiting for MySQL..."
-              sleep 2
-            fi
-          done
-      - name: Run schema.sql to create database tables
-        run: |
-          mysql -h 127.0.0.1 -P 3306 -u root -proot amazon < schema.sql
-
-
-      - name: Run Amazon.py with DISPLAY and MySQL env vars
+      - name: Run scraper and load to BigQuery
         env:
           DISPLAY: :99
-          MYSQL_HOST: '127.0.0.1'
-          MYSQL_PORT: 3306
-          MYSQL_USER: "root"
-          MYSQL_PASSWORD: "root"
-          MYSQL_DATABASE: "amazon"
-          AMAZON_LISTING_URL: ${{vars.AMAZON_LISTING_URL }}
+          GCP_PROJECT_ID: dynamic-pricing-tracker
+          AMAZON_LISTING_URL: ${{ vars.AMAZON_LISTING_URL }}
         run: python -m src.main
