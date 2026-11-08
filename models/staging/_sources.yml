@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: amazon_raw
+    database: dynamic-pricing-tracker
+    schema: amazon_raw
+    tables:
+      - name: gpu_scrapes
+        description: One row per product per scrape, appended by the Python scraper.
