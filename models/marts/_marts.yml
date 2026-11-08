@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: dim_product
+    description: One row per GPU, with its most recent known specs.
+    columns:
+      - name: asin
+        description: Amazon's product ID.
+        data_tests:
+          - unique
+          - not_null
+      - name: ram_gb
+        description: Graphics memory in GB, converted from GB or MB values.
+
+  - name: fct_prices
+    description: One row per product per scrape. Prices are in the currency Amazon showed.
+    columns:
+      - name: price_id
+        description: asin plus scrape time.
+        data_tests:
+          - unique
+          - not_null
+      - name: asin
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: asin
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['GBP', 'USD']
+      - name: actual_price
+        data_tests:
+          - not_null
