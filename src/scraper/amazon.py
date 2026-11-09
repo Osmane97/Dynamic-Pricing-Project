@@ -133,7 +133,6 @@ def product_information(driver):
     }
 
 #parse = analysing, taking a messy string, then extract and clean the structured result in a dictionary
-#passing details_keys_split as a parameter is optional, doing this can let us  use the function for totally different type of product
 def parse_product_details(driver):
     # Read every row of Amazon's spec tables into {label: value}
     page_specs = {}
