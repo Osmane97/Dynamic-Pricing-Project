@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_gpu_scrapes
+    description: Cleaned scrapes, one row per product per scrape. Turns 'unknown' into NULL, standardises currency codes and converts graphics memory to GB.
+    columns:
+      - name: asin
+        description: Amazon's product ID.
+      - name: scrape_time
+        description: When the product page was scraped (UTC).
+      - name: scrape_date
+        description: Date part of scrape_time, for daily grouping.
+      - name: currency
+        description: ISO currency code, GBP or USD ('£' is converted to GBP).
+      - name: actual_price
+        description: Price the product was selling for at scrape time.
+      - name: original_price
+        description: List price (RRP) shown when discounted, otherwise the selling price.
+      - name: discount_percent
+        description: Discount shown by Amazon, in percent.
+      - name: last_month_sold
+        description: Amazon's "bought in past month" lower bound.
+      - name: product_rating
+        description: Average customer rating out of 5.
+      - name: number_of_reviews
+        description: Number of customer ratings.
+      - name: brand
+        description: Card manufacturer. NULL when Amazon had no value.
+      - name: series
+        description: Product series from the spec table.
+      - name: item_model_number
+        description: Manufacturer's model number.
+      - name: graphics_coprocessor
+        description: GPU chip name as the seller wrote it.
+      - name: graphics_chipset_brand
+        description: GPU chip maker, such as NVIDIA or AMD.
+      - name: graphics_ram_type
+        description: Video memory type, such as GDDR7.
+      - name: memory_clock_speed
+        description: Memory clock speed as text.
+      - name: product_dimensions
+        description: Package or card dimensions as text.
+      - name: resolution
+        description: Maximum supported resolution as text.
+      - name: ram_gb
+        description: Video memory in GB, parsed from GB or MB text. MB values are rounded to whole GB, except cards under 1 GB.

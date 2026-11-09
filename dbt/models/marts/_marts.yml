@@ -9,8 +9,32 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: brand
+        description: Card manufacturer, such as Gigabyte or ASUS.
+      - name: series
+        description: Product series from the spec table.
+      - name: item_model_number
+        description: Manufacturer's model number.
+      - name: graphics_coprocessor
+        description: GPU chip name as the seller wrote it.
+      - name: graphics_chipset_brand
+        description: GPU chip maker, such as NVIDIA or AMD.
+      - name: graphics_ram_type
+        description: Video memory type, such as GDDR7.
       - name: ram_gb
         description: Graphics memory in GB, converted from GB or MB values.
+      - name: memory_clock_speed
+        description: Memory clock speed as text.
+      - name: product_dimensions
+        description: Package or card dimensions as text.
+      - name: resolution
+        description: Maximum supported resolution as text.
+      - name: first_seen_at
+        description: First time the product was scraped (UTC).
+      - name: last_seen_at
+        description: Most recent time the product was scraped (UTC).
+      - name: times_scraped
+        description: Number of scrapes that included the product.
 
   - name: fct_prices
     description: One row per product per scrape. Prices are in the currency Amazon showed.
@@ -21,17 +45,36 @@ models:
           - unique
           - not_null
       - name: asin
+        description: Amazon's product ID; joins to dim_product.
         data_tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_product')
                 field: asin
+      - name: scrape_time
+        description: When the product page was scraped (UTC).
+      - name: scrape_date
+        description: Date part of scrape_time, for daily grouping.
       - name: currency
+        description: ISO currency code. Never mix currencies in one aggregate.
         data_tests:
           - accepted_values:
               arguments:
                 values: ['GBP', 'USD']
       - name: actual_price
+        description: Price the product was selling for at scrape time.
         data_tests:
           - not_null
+      - name: original_price
+        description: List price (RRP) shown when discounted, otherwise the selling price.
+      - name: discount_percent
+        description: Discount shown by Amazon, in percent.
+      - name: is_discounted
+        description: True when discount_percent is above 0.
+      - name: last_month_sold
+        description: Amazon's "bought in past month" lower bound.
+      - name: product_rating
+        description: Average customer rating out of 5.
+      - name: number_of_reviews
+        description: Number of customer ratings.

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU Price Tracker · Data Toolkit</title>
+<style>
+  :root {
+    --bg: #F4F3F8; --card: #FFFFFF; --ink: #1F1F29; --muted: #6B6B80; --line: #E4E3EE; --soft: #F7F5FF;
+    --accent: #7C5CFC; --accent-ink: #5B3FD9; --good: #1E9E62; --warn: #C98A06; --bad: #D93A40;
+    --k-external: #9A9AAE; --k-compute: #4C8DFF; --k-code: #2BB673; --k-identity: #F5A524; --k-storage: #7C5CFC;
+    --k-transform: #E05FD8; --k-consumer: #14B8A6; --k-measure: #5B3FD9; --k-visual: #0E9384; --k-config: #A3A3B5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: #111118; color: #fff; padding: 18px 28px 0; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+  header .meta { color: #B9A8FF; font-size: 12.5px; margin-top: 4px; }
+  header .meta a { color: #B9A8FF; }
+  nav { display: flex; gap: 4px; margin-top: 14px; flex-wrap: wrap; }
+  nav a { color: #CFCFE0; text-decoration: none; padding: 9px 14px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 13.5px; }
+  nav a:hover { color: #fff; background: #1E1E2A; }
+  nav a.active { color: var(--ink); background: var(--bg); }
+  main { padding: 22px 28px 40px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .lead { color: var(--muted); margin: 0 0 16px; max-width: 980px; }
+  .lead b { color: var(--ink); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .kpi .v { font-size: 22px; font-weight: 700; }
+  .kpi .l { font-size: 12px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 15px; }
+  .graph-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (min-width: 2100px) { .graph-wrap { grid-template-columns: minmax(0, 1fr) 420px; } }
+  .graph { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 78vh; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; }
+  .panel h3 { margin: 0 0 4px; font-size: 16px; word-break: break-word; }
+  .panel .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+  .panel h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .panel .empty { color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+  .node { cursor: pointer; }
+  .node rect.box { fill: #fff; stroke: #D9D7E6; stroke-width: 1.2; }
+  .node:hover rect.box { stroke: var(--accent); }
+  .node.sel rect.box { stroke: var(--accent); stroke-width: 2.4; fill: #F4F0FF; }
+  .node.up rect.box { stroke: #4C8DFF; stroke-width: 1.8; }
+  .node.down rect.box { stroke: #14B8A6; stroke-width: 1.8; }
+  .dim { opacity: .18; }
+  .edge path { fill: none; stroke: #B8B6CC; stroke-width: 1.4; }
+  .edge.hot path { stroke: var(--accent); stroke-width: 2; }
+  .edge text { font-size: 10.5px; fill: var(--muted); }
+  .colhead { font-size: 11px; font-weight: 700; fill: var(--muted); letter-spacing: .6px; text-transform: uppercase; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: #fff; background: var(--accent); padding: 7px 9px; position: sticky; top: 0; }
+  table.t td { padding: 6px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.t tr:nth-child(even) td { background: #FBFAFF; }
+  table.t td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { overflow: auto; max-height: 420px; border: 1px solid var(--line); border-radius: 8px; }
+  code, pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; }
+  pre { background: #15151E; color: #E8E6F5; padding: 12px; border-radius: 8px; overflow: auto; max-height: 360px; white-space: pre; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+  .pill.pass { background: #E3F6EC; color: var(--good); }
+  .pill.warn { background: #FFF4D6; color: var(--warn); }
+  .pill.fail { background: #FDE6E7; color: var(--bad); }
+  .tag { display: inline-block; padding: 0 7px; border-radius: 5px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+  .tag.pk { background: #EDE7FF; color: var(--accent-ink); }
+  .tag.fk { background: #DDF5F2; color: var(--k-visual); }
+  .muted { color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .catalog { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .catalog input { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; font: inherit; margin-bottom: 10px; }
+  .tlist { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px; max-height: calc(100vh - 260px); overflow: auto; }
+  .tlist .ds { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin: 10px 8px 4px; }
+  .tlist .item { padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+  .tlist .item:hover { background: var(--soft); }
+  .tlist .item.active { background: #EDE7FF; font-weight: 600; }
+  .tlist .hit { font-size: 12px; color: var(--muted); padding: 2px 9px 2px 20px; cursor: pointer; }
+  .tlist .hit:hover { color: var(--accent-ink); }
+  mark { background: #FFF1A8; padding: 0 1px; }
+  tr.flash td { background: #FFF6CC !important; }
+  details summary { cursor: pointer; color: var(--accent-ink); font-size: 12.5px; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  @media (max-width: 1100px) { .graph-wrap, .catalog, .grid2 { grid-template-columns: 1fr; } .panel { position: static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>GPU Price Tracker · Data Toolkit</h1>
+  <div class="meta" id="meta"></div>
+  <nav id="nav">
+    <a href="#architecture">Architecture</a>
+    <a href="#lineage">Lineage</a>
+    <a href="#calls">Call graph</a>
+    <a href="#model">Data model</a>
+    <a href="#quality">Data quality</a>
+    <a href="#catalog">Catalog</a>
+  </nav>
+</header>
+<main>
+  <section class="page" id="page-architecture">
+    <p class="lead">Drawn from what actually runs, not by hand: every arrow comes from <b>BigQuery's job log</b> (who wrote or read which table in the last <span id="jobdays"></span> days), the <b>GitHub Actions</b> workflow and its run history, and the <b>Power BI</b> model's data sources. Click a box to see its evidence.</p>
+    <div class="kpis" id="arch-kpis"></div>
+    <div class="legend" id="arch-legend"></div>
+    <div class="graph-wrap"><div class="graph" id="arch-graph"></div><aside class="panel" id="arch-panel"></aside></div>
+  </section>
+
+  <section class="page" id="page-lineage">
+    <p class="lead">Every table, model, Power BI measure and visual, linked from the code that loads the data to the report that shows it. Built from the loader's target table, dbt's <code>source()</code> and <code>ref()</code> calls, the Power BI table sources, DAX references and the fields each visual uses. <b>Click any node</b> to highlight everything upstream (blue) and downstream (teal).</p>
+    <div class="legend" id="lin-legend"></div>
+    <div class="graph-wrap"><div class="graph" id="lin-graph"></div><aside class="panel" id="lin-panel"></aside></div>
+  </section>
+
+  <section class="page" id="page-calls">
+    <p class="lead">Who calls what in <code>src/</code>, parsed from the Python syntax tree. Edge labels count call sites. Library calls are grouped per library; the variables that hold a Selenium driver or BigQuery client are traced back to where they were created.</p>
+    <div class="legend" id="call-legend"></div>
+    <div class="graph-wrap"><div class="graph" id="call-graph"></div><aside class="panel" id="call-panel"></aside></div>
+  </section>
+
+  <section class="page" id="page-model">
+    <p class="lead">The modelled layer is a <b>star schema</b>: one dimension and one fact joined on <code>asin</code>. Keys come from the dbt tests (<span class="tag pk">PK</span> = unique + not null, <span class="tag fk">FK</span> = relationships test) and the join from the Power BI model.</p>
+    <div class="card"><div id="er"></div></div>
+    <div class="grid2">
+      <div class="card"><h3>Keys and grain</h3><div id="keys"></div></div>
+      <div class="card"><h3>Power BI relationships</h3><div id="pbirel"></div></div>
+    </div>
+    <div class="card"><h3>Power BI measures (DAX)</h3><div id="measures"></div></div>
+  </section>
+
+  <section class="page" id="page-quality">
+    <p class="lead">Quality gates and their results at build time. <b>dbt tests</b> are read from the dbt YAML and re-run as SQL against <code>dbt_prod</code>; <b>monitors</b> check freshness, volume, completeness, documentation and job failures.</p>
+    <div class="kpis" id="dq-kpis"></div>
+    <div class="card"><h3>Gates</h3><div id="gates"></div></div>
+    <div class="card"><h3>Rows loaded per scraper run</h3><div id="runs-chart"></div><p class="note" id="runs-note"></p></div>
+    <div class="card"><h3>GitHub Actions runs</h3><div id="gha-chart"></div><p class="note" id="gha-note"></p></div>
+  </section>
+
+  <section class="page" id="page-catalog">
+    <p class="lead">Every table and column in BigQuery, with its dbt description, profile, sample values and lineage. Search matches table names, column names and descriptions.</p>
+    <div class="catalog">
+      <div><input id="search" placeholder="Search tables and columns…" autocomplete="off"><div class="tlist" id="tlist"></div></div>
+      <div id="tdetail"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const DATA = /*__DATA__*/null;
+const D = DATA;
+
+// ---------------------------------------------------------------- helpers
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const num = n => n == null ? '—' : Number(n).toLocaleString('en-GB');
+const bytes = b => b == null ? '—' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+const when = iso => iso ? new Date(iso).toLocaleString('en-GB', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'}) + ' UTC' : '—';
+const ago = iso => { if (!iso) return '—'; const h = (Date.now() - new Date(iso)) / 36e5; return h < 1 ? `${Math.round(h * 60)} min ago` : h < 48 ? `${h.toFixed(1)} h ago` : `${Math.round(h / 24)} days ago`; };
+const shortUser = u => u.includes('gserviceaccount') ? u.split('@')[0] : 'personal account';
+const trunc = (s, n) => (s = String(s ?? '')).length > n ? s.slice(0, n - 1) + '…' : s;
+const KIND = {
+  external: 'External', compute: 'Orchestration', code: 'Code', identity: 'Identity', storage: 'BigQuery table',
+  transform: 'Transformation', consumer: 'Consumer', measure: 'DAX measure', visual: 'Report visual', config: 'Config',
+};
+const kindColor = k => `var(--k-${k})`;
+const table = (cols, rows) => `<table class="t"><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td${typeof c === 'number' ? ' class="num"' : ''}>${typeof c === 'number' ? num(c) : c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+document.getElementById('meta').innerHTML =
+  `Built ${when(D.built_at)} from commit <a href="https://github.com/${D.repo}/commit/${D.git.commit}" target="_blank">${D.git.commit}</a> · project <code>${D.project}</code> · <a href="https://github.com/${D.repo}" target="_blank">${D.repo}</a>`;
+document.getElementById('jobdays').textContent = D.jobs.days;
+
+// ---------------------------------------------------------------- graph renderer
+// Lays a DAG out in columns by longest path from the roots, orders each column to reduce crossings,
+// and highlights every ancestor and descendant of the clicked node.
+function renderGraph(el, panel, graph, opts = {}) {
+  const {nodes, edges} = graph;
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const valid = edges.filter(e => byId[e.from] && byId[e.to] && e.from !== e.to);
+  const out = {}, inc = {};
+  nodes.forEach(n => { out[n.id] = []; inc[n.id] = []; });
+  valid.forEach(e => { out[e.from].push(e.to); inc[e.to].push(e.from); });
+
+  const layer = {};
+  const depth = (id, seen = new Set()) => {
+    if (layer[id] != null) return layer[id];
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    layer[id] = inc[id].length ? Math.max(...inc[id].map(p => depth(p, seen) + 1)) : 0;
+    return layer[id];
+  };
+  nodes.forEach(n => depth(n.id));
+  // pull sources right, next to their first consumer
+  nodes.forEach(n => { if (!inc[n.id].length && out[n.id].length) layer[n.id] = Math.min(...out[n.id].map(c => layer[c])) - 1; });
+
+  const cols = [];
+  nodes.forEach(n => (cols[layer[n.id]] ||= []).push(n.id));
+  cols.forEach(c => c.sort((a, b) => (byId[a].group || '').localeCompare(byId[b].group || '') || byId[a].label.localeCompare(byId[b].label)));
+  const pos = {};
+  const index = () => cols.forEach(c => c.forEach((id, i) => pos[id] = i));
+  index();
+  const bary = (ids, nbrs) => { const v = ids.map(i => pos[i]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b) / v.length : null; };
+  for (let pass = 0; pass < 4; pass++) {
+    const order = pass % 2 ? [...cols.keys()].reverse() : [...cols.keys()];
+    order.forEach(ci => {
+      const c = cols[ci]; if (!c) return;
+      const key = id => { const b = bary(pass % 2 ? out[id] : inc[id]); return b == null ? pos[id] : b; };
+      c.sort((a, b) => key(a) - key(b));
+      c.forEach((id, i) => pos[id] = i);
+    });
+  }
+
+  const W = opts.nodeW || 210, H = 54, GX = opts.gapX || 90, GY = 18, PX = 24, PY = opts.colNames ? 44 : 24;
+  const maxRows = Math.max(...cols.map(c => c ? c.length : 0));
+  const height = PY + maxRows * (H + GY) + 10;
+  const width = PX * 2 + cols.length * W + (cols.length - 1) * GX;
+  const xy = {};
+  cols.forEach((c, ci) => {
+    if (!c) return;
+    const offset = (maxRows - c.length) * (H + GY) / 2;
+    c.forEach((id, i) => xy[id] = {x: PX + ci * (W + GX), y: PY + offset + i * (H + GY)});
+  });
+
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  svg += `<defs><marker id="arr-${el.id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#B8B6CC"/></marker></defs>`;
+  if (opts.colNames) cols.forEach((c, ci) => { if (c && opts.colNames(ci, c)) svg += `<text class="colhead" x="${PX + ci * (W + GX)}" y="24">${esc(opts.colNames(ci, c))}</text>`; });
+  valid.forEach((e, i) => {
+    const a = xy[e.from], b = xy[e.to];
+    const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x - 2, y2 = b.y + H / 2, dx = Math.max(40, (x2 - x1) / 2);
+    const back = x2 < x1;
+    const d = back ? `M${a.x + W / 2} ${a.y + H}C${a.x + W / 2} ${a.y + H + 60},${b.x + W / 2} ${b.y + H + 60},${b.x + W / 2} ${b.y + H}`
+                   : `M${x1} ${y1}C${x1 + dx} ${y1},${x2 - dx} ${y2},${x2} ${y2}`;
+    svg += `<g class="edge" data-from="${esc(e.from)}" data-to="${esc(e.to)}"><path d="${d}" marker-end="url(#arr-${el.id})"/>`;
+    if (e.label) svg += `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 5}" text-anchor="middle">${esc(trunc(e.label, 26))}</text>`;
+    svg += `<title>${esc(e.title || e.label || '')}</title></g>`;
+  });
+  nodes.forEach(n => {
+    const p = xy[n.id];
+    svg += `<g class="node" data-id="${esc(n.id)}" transform="translate(${p.x},${p.y})">
+      <rect class="box" width="${W}" height="${H}" rx="8"/>
+      <rect width="5" height="${H}" rx="2" fill="${kindColor(n.kind)}"/>
+      <text x="14" y="22" font-size="13" font-weight="600" fill="#1F1F29">${esc(trunc(n.label, Math.floor((W - 20) / 7.4)))}</text>
+      <text x="14" y="40" font-size="11" fill="#6B6B80">${esc(trunc(n.sub, Math.floor((W - 20) / 5.9)))}</text>
+      <title>${esc(n.label)}${n.sub ? '\n' + esc(n.sub) : ''}</title></g>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = svg;
+  const fit = () => {
+    const box = el.clientWidth - 2, s2 = box > 0 && width > box ? Math.max(0.75, box / width) : 1;
+    const svgEl = el.querySelector('svg'); svgEl.setAttribute('width', width * s2); svgEl.setAttribute('height', height * s2);
+  };
+  fit();
+  window.addEventListener('resize', fit);
+
+  const walk = (start, next) => { const seen = new Set(), stack = [...next[start]]; while (stack.length) { const id = stack.pop(); if (!seen.has(id)) { seen.add(id); stack.push(...next[id]); } } return seen; };
+  const chipList = ids => ids.size ? `<div class="chips">${[...ids].map(id => `<span class="chip" data-go="${esc(id)}">${esc(byId[id].label)}</span>`).join('')}</div>` : '<div class="empty">none</div>';
+
+  function select(id) {
+    const up = id ? walk(id, inc) : new Set(), down = id ? walk(id, out) : new Set();
+    el.querySelectorAll('.node').forEach(g => {
+      const nid = g.dataset.id;
+      g.classList.toggle('sel', nid === id);
+      g.classList.toggle('up', up.has(nid));
+      g.classList.toggle('down', down.has(nid));
+      g.classList.toggle('dim', !!id && nid !== id && !up.has(nid) && !down.has(nid));
+    });
+    el.querySelectorAll('.edge').forEach(g => {
+      const on = id && (g.dataset.to === id || up.has(g.dataset.to)) && (g.dataset.from === id || up.has(g.dataset.from))
+              || id && (g.dataset.from === id || down.has(g.dataset.from)) && (g.dataset.to === id || down.has(g.dataset.to));
+      g.classList.toggle('hot', !!on);
+      g.classList.toggle('dim', !!id && !on);
+    });
+    if (!id) { panel.innerHTML = opts.intro || '<p class="empty">Click a node to see its details.</p>'; return; }
+    const n = byId[id];
+    panel.innerHTML = `<div class="kind" style="color:${kindColor(n.kind)}">${esc(KIND[n.kind] || n.kind)}</div><h3>${esc(n.label)}</h3>
+      <div class="muted">${esc(n.sub || '')}</div>${n.detail || ''}
+      <h4>Upstream (${up.size})</h4>${chipList(up)}<h4>Downstream (${down.size})</h4>${chipList(down)}`;
+    panel.querySelectorAll('[data-go]').forEach(c => c.onclick = () => select(c.dataset.go));
+  }
+  el.onclick = ev => { const g = ev.target.closest('.node'); select(g ? g.dataset.id : null); };
+  select(opts.start || null);
+  return {select, byId, inc, out, walk};
+}
+
+function legend(el, kinds) {
+  el.innerHTML = kinds.map(k => `<span><i style="background:${kindColor(k)}"></i>${KIND[k]}</span>`).join('') +
+    '<span><i style="background:#4C8DFF"></i>upstream of selection</span><span><i style="background:#14B8A6"></i>downstream of selection</span>';
+}
+
+// ---------------------------------------------------------------- architecture
+function architecture() {
+  const N = [], E = [];
+  const wf = D.workflow, runs = D.workflow_runs.runs;
+  const ok = runs.filter(r => r.conclusion === 'success').length;
+  const sched = runs.filter(r => r.event === 'schedule');
+  const avgMin = runs.length ? (runs.reduce((a, r) => a + r.minutes, 0) / runs.length).toFixed(1) : '—';
+  const modules = Object.keys(D.python.modules), fns = Object.keys(D.python.functions).filter(f => !f.includes(':'));
+
+  N.push({id: 'amazon', label: 'Amazon UK', sub: 'best-seller list + product pages', kind: 'external',
+    detail: `<h4>Evidence</h4><p>The scraper opens the listing URL from <code>AMAZON_LISTING_URL</code> (a GitHub Actions variable), then each product at <code>/dp/{asin}</code>.</p>`});
+  N.push({id: 'gha', label: 'GitHub Actions', sub: `${wf.cron.join(', ')} · ${ok}/${runs.length} runs ok`, kind: 'compute',
+    detail: `<h4>Workflow</h4><p><code>${esc(wf.path)}</code> on <code>${esc(wf.runner)}</code>, cron <code>${esc(wf.cron.join(', '))}</code>${wf.manual ? ' + manual runs' : ''}.</p>
+      <h4>Steps</h4><ol>${wf.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
+      <h4>Last ${runs.length} runs</h4><p>${ok} succeeded, ${sched.length} scheduled, average ${avgMin} min. Last run ${ago(runs[0]?.started)}.</p>`});
+  N.push({id: 'code', label: 'python -m src.main', sub: `${modules.length} modules · ${fns.length} functions`, kind: 'code',
+    detail: `<h4>Evidence</h4><p>The workflow step runs <code>${esc(wf.command)}</code>.</p><h4>Modules</h4><ul>${modules.map(m => `<li><code>${esc(D.python.modules[m].path)}</code></li>`).join('')}</ul><p><a href="#calls">Open the call graph →</a></p>`});
+  E.push({from: 'amazon', to: 'code', label: 'HTML scraped'});
+  E.push({from: 'gha', to: 'code', label: 'runs', title: wf.command});
+
+  const writers = {};
+  D.jobs.writes.forEach(w => (writers[w.user] ||= []).push(w));
+  Object.entries(writers).forEach(([user, ws]) => {
+    const isLoader = ws.every(w => w.job_type === 'LOAD');
+    const isPerson = !user.includes('gserviceaccount');
+    const id = 'u:' + user;
+    const count = ws.reduce((a, w) => a + w.count, 0);
+    const label = isPerson ? 'Manual runs' : isLoader ? shortUser(user) : 'dbt Cloud';
+    N.push({id, label, sub: isPerson ? `personal account · ${count} jobs` : `${shortUser(user)} · ${count} jobs`, kind: isLoader || isPerson ? 'identity' : 'transform',
+      detail: `<h4>Identity</h4><p><code>${esc(user)}</code></p><h4>Jobs in the last ${D.jobs.days} days</h4>` +
+        table(['Table', 'Statement', 'Jobs', 'Failed', 'Last'], ws.map(w => [`<code>${esc(w.table)}</code>`, esc(w.statement || w.job_type), w.count, w.failed, ago(w.last)]))});
+    if (isLoader || isPerson) E.push({from: 'code', to: id, label: isPerson ? 'local run (gcloud)' : 'auth via WIF',
+      title: isPerson ? 'Local runs use Application Default Credentials' : `Workflow authenticates as ${wf.service_account}`});
+    const perTable = {};
+    const verb = w => w.job_type === 'LOAD' ? 'loads' : w.statement === 'CREATE_VIEW' ? 'builds view' : 'builds';
+    ws.forEach(w => { const p = perTable[w.table] ||= {n: 0, s: new Set(), raw: new Set()}; p.n += w.count; p.s.add(verb(w)); p.raw.add(w.statement || w.job_type); });
+    Object.entries(perTable).forEach(([t, p]) => E.push({from: id, to: 't:' + t, label: `${[...p.s].join(', ')} ×${p.n}`, title: [...p.raw].join(', ')}));
+  });
+  // a transformation identity (one that builds tables) reads its inputs; ad-hoc reads by people are left out
+  D.jobs.reads.forEach(r => {
+    const ws = writers[r.user] || [];
+    const builds = ws.some(w => w.job_type === 'QUERY');
+    const writesIt = ws.some(w => w.table === r.table);
+    if (builds && !writesIt && r.user.includes('gserviceaccount')) E.push({from: 't:' + r.table, to: 'u:' + r.user, label: `reads ×${r.count}`});
+  });
+
+  Object.values(D.tables).forEach(t => N.push({id: 't:' + t.id, label: t.id, sub: `${t.type === 'VIEW' ? 'view' : num(t.row_count) + ' rows · ' + bytes(t.bytes)}`, kind: 'storage', group: t.dataset,
+    detail: `<p>${esc(describe(t))}</p><p><a href="#catalog" onclick="goCatalog(\'${esc(t.id)}\');return false;">Open in catalog →</a></p>`}));
+  const pbiTables = D.powerbi.tables.filter(t => t.source);
+  N.push({id: 'pbi', label: 'Power BI report', sub: `${D.powerbi.name} · ${D.powerbi.visuals.length} visuals`, kind: 'consumer',
+    detail: `<h4>Evidence</h4><p>Semantic model table sources in <code>${esc(D.powerbi.path)}</code>.</p>` +
+      table(['Power BI table', 'Reads', 'Mode'], pbiTables.map(t => [esc(t.name), `<code>${esc(t.source.dataset + '.' + t.source.table)}</code>`, esc(t.source.mode)]))});
+  pbiTables.forEach(t => E.push({from: 't:' + t.source.dataset + '.' + t.source.table, to: 'pbi', label: t.source.mode}));
+
+  const failed = D.jobs.writes.reduce((a, w) => a + w.failed, 0);
+  const raw = D.tables['amazon_raw.gpu_scrapes'];
+  document.getElementById('arch-kpis').innerHTML = [
+    [`${ok}/${runs.length}`, 'GitHub Actions runs succeeded'],
+    [ago(runs[0]?.started), 'last workflow run'],
+    [num(D.jobs.total), `BigQuery jobs, last ${D.jobs.days} days`],
+    [failed, 'failed load/build jobs'],
+    [num(raw?.row_count), 'raw rows stored'],
+    [Object.keys(D.tables).length, 'tables and views'],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+  legend(document.getElementById('arch-legend'), ['external', 'compute', 'code', 'identity', 'storage', 'transform', 'consumer']);
+  const colName = {external: 'Source', compute: 'Orchestration', code: 'Code', identity: 'Identity', storage: 'BigQuery', transform: 'Transformation', consumer: 'Consumption'};
+  const byId = Object.fromEntries(N.map(n => [n.id, n]));
+  renderGraph(document.getElementById('arch-graph'), document.getElementById('arch-panel'), {nodes: N, edges: E},
+    {colNames: (ci, ids) => [...new Set(ids.map(i => colName[byId[i].kind]))].join(' / '), intro: '<p class="empty">Click a box to see the evidence behind it: job counts, run history and source files.</p>'});
+}
+
+function describe(t) {
+  const m = D.dbt.models[t.name];
+  if (m && m.description) return m.description;
+  const s = D.dbt.sources[`${t.dataset}.${t.name}`];
+  return s ? s.description : '';
+}
+
+// ---------------------------------------------------------------- lineage
+let LINEAGE;
+function lineageGraph() {
+  const N = [], E = [];
+  const loader = Object.keys(D.python.functions).find(f => f.endsWith('bigquery_loader.load'));
+  if (loader) N.push({id: 'py:load', label: 'bigquery_loader.load()', sub: 'load job · WRITE_APPEND', kind: 'code',
+    detail: `<h4>Evidence</h4><p><code>${esc(D.python.functions[loader].path)}</code> line ${D.python.functions[loader].line} loads into <code>amazon_raw.gpu_scrapes</code>.</p>`});
+  Object.values(D.dbt.sources).forEach(s => {
+    const id = `rel:${s.dataset}.${s.table}`, t = D.tables[`${s.dataset}.${s.table}`];
+    N.push({id, label: s.table, sub: `source · ${s.dataset} · ${num(t?.row_count)} rows`, kind: 'storage',
+      detail: `<p>${esc(s.description)}</p><p><a href="#catalog" onclick="goCatalog(\'${s.dataset}.${s.table}\');return false;">Open in catalog →</a></p>`});
+    if (loader) E.push({from: 'py:load', to: id, label: 'appends'});
+  });
+  Object.values(D.dbt.models).forEach(m => {
+    const id = `rel:dbt_prod.${m.name}`, t = D.tables[`dbt_prod.${m.name}`];
+    N.push({id, label: m.name, sub: `dbt ${m.materialized} · ${m.folder}${t && t.type !== 'VIEW' ? ' · ' + num(t.row_count) + ' rows' : ''}`, kind: 'transform',
+      detail: `<p>${esc(m.description)}</p><p><code>${esc(m.path)}</code> · <a href="#catalog" onclick="goCatalog(\'dbt_prod.${m.name}\');return false;">catalog →</a></p><details><summary>SQL</summary><pre>${esc(m.sql)}</pre></details>`});
+    m.sources.forEach(s => { const src = D.dbt.sources[s]; E.push({from: `rel:${src.dataset}.${src.table}`, to: id, label: 'source()'}); });
+    m.refs.forEach(r => E.push({from: `rel:dbt_prod.${r}`, to: id, label: 'ref()'}));
+  });
+  const measureNames = new Set();
+  D.powerbi.tables.forEach(t => t.measures.forEach(m => measureNames.add(m.name)));
+  D.powerbi.tables.filter(t => t.source).forEach(t => {
+    const id = 'pbi:' + t.name;
+    N.push({id, label: `${t.name} (Power BI)`, sub: `${t.source.mode} · ${t.columns.length} columns`, kind: 'consumer',
+      detail: `<p>Power BI table loaded from <code>${esc(t.source.dataset + '.' + t.source.table)}</code> in ${esc(t.source.mode)} mode.</p>`});
+    E.push({from: `rel:${t.source.dataset}.${t.source.table}`, to: id, label: t.source.mode});
+    t.measures.forEach(m => {
+      N.push({id: 'm:' + m.name, label: m.name, sub: `measure${m.format ? ' · ' + m.format : ''}`, kind: 'measure',
+        detail: `<h4>DAX</h4><pre>${esc(m.expression)}</pre>`});
+      m.refs_columns.forEach(([tbl]) => E.push({from: 'pbi:' + tbl, to: 'm:' + m.name}));
+      m.refs_measures.filter(r => measureNames.has(r)).forEach(r => E.push({from: 'm:' + r, to: 'm:' + m.name}));
+    });
+  });
+  D.powerbi.visuals.forEach(v => {
+    const id = 'v:' + v.id;
+    const label = v.title || `${v.type}: ${v.fields.map(f => f[1]).join(', ')}`;
+    N.push({id, label, sub: `${v.type} · page ${v.page}`, kind: 'visual',
+      detail: `<h4>Fields used</h4><ul>${v.fields.map(([e, p]) => `<li><code>${esc(e)}[${esc(p)}]</code>${measureNames.has(p) ? ' (measure)' : ''}</li>`).join('')}</ul>`});
+    const from = new Set(v.fields.map(([e, p]) => measureNames.has(p) ? 'm:' + p : 'pbi:' + e));
+    from.forEach(f => E.push({from: f, to: id}));
+  });
+  // drop duplicate edges
+  const seen = new Set();
+  return {nodes: N, edges: E.filter(e => { const k = e.from + '>' + e.to; if (seen.has(k)) return false; seen.add(k); return true; })};
+}
+
+function lineage() {
+  const g = lineageGraph();
+  legend(document.getElementById('lin-legend'), ['code', 'storage', 'transform', 'consumer', 'measure', 'visual']);
+  LINEAGE = renderGraph(document.getElementById('lin-graph'), document.getElementById('lin-panel'), g,
+    {nodeW: 200, gapX: 70, intro: '<p class="empty">Click any node. Its full upstream and downstream chain lights up, and the chips below let you jump along it.</p>', start: 'rel:dbt_prod.fct_prices'});
+}
+
+// ---------------------------------------------------------------- call graph
+function calls() {
+  const P = D.python, N = [], E = [];
+  N.push({id: 'wf', label: 'GitHub Actions step', sub: D.workflow.command, kind: 'compute', detail: `<p>The workflow runs <code>${esc(D.workflow.command)}</code>.</p>`});
+  Object.entries(P.functions).forEach(([q, f]) => {
+    const isMain = q.includes(':');
+    N.push({id: q, label: isMain ? `${f.module} (__main__)` : `${f.name}()`, sub: `${f.path}:${f.line}`, kind: isMain ? 'compute' : 'code', group: f.module,
+      detail: `<p><code>${esc(f.path)}</code>, lines ${f.line}–${f.end}</p>${f.args.length ? `<p>Arguments: <code>${esc(f.args.join(', '))}</code></p>` : ''}${f.doc ? `<p>${esc(f.doc)}</p>` : ''}
+        ${P.config_reads[q] ? `<h4>Config read</h4><p><code>${esc(P.config_reads[q].join(', '))}</code></p>` : ''}`});
+    if (isMain) E.push({from: 'wf', to: q, label: 'python -m'});
+  });
+  Object.entries(P.externals).forEach(([lib, members]) => {
+    N.push({id: 'lib:' + lib, label: lib, sub: `${Object.keys(members).length} members used`, kind: 'external',
+      detail: table(['Member', 'Called from'], Object.entries(members).map(([m, by]) => [`<code>${esc(m)}</code>`, by.map(b => esc(b.split('.').pop())).join(', ')]))});
+  });
+  if (P.modules['src.config']) N.push({id: 'src.config', label: 'src.config', sub: P.modules['src.config'].constants.join(', '), kind: 'config',
+    detail: `<p>Settings read from environment variables: <code>${esc(P.modules['src.config'].constants.join(', '))}</code>.</p>`});
+  P.edges.forEach(e => E.push({from: e.from, to: e.to, label: e.to === 'src.config' ? 'reads' : `×${e.count}`}));
+  legend(document.getElementById('call-legend'), ['compute', 'code', 'external', 'config']);
+  renderGraph(document.getElementById('call-graph'), document.getElementById('call-panel'), {nodes: N, edges: E},
+    {nodeW: 200, gapX: 70, intro: '<p class="empty">Click a function to see what it calls and what calls it.</p>', start: 'src.scraper.amazon.scrape'});
+}
+
+// ---------------------------------------------------------------- data model
+function model() {
+  const tests = D.dbt.tests;
+  const has = (m, c, t) => tests.some(x => x.model === m && x.column === c && x.type === t);
+  const pk = (m, c) => has(m, c, 'unique') && has(m, c, 'not_null');
+  const fk = (m, c) => tests.find(x => x.model === m && x.column === c && x.type === 'relationships');
+  const boxes = ['fct_prices', 'dim_product'].map(n => D.tables['dbt_prod.' + n]).filter(Boolean);
+  const W = 330, RH = 22, HEAD = 56, GAP = 200, X0 = 20;
+  const heights = boxes.map(b => HEAD + b.columns.length * RH + 10);
+  const H = Math.max(...heights) + 40;
+  let svg = `<svg width="100%" viewBox="0 0 ${X0 * 2 + boxes.length * W + GAP} ${H}" style="max-width:${X0 * 2 + boxes.length * W + GAP}px">`;
+  const rowY = {};
+  boxes.forEach((b, i) => {
+    const x = X0 + i * (W + GAP), y = 20;
+    svg += `<rect x="${x}" y="${y}" width="${W}" height="${heights[i]}" rx="10" fill="#fff" stroke="#D9D7E6"/>
+      <rect x="${x}" y="${y}" width="${W}" height="${HEAD - 8}" rx="10" fill="#7C5CFC"/><rect x="${x}" y="${y + HEAD - 18}" width="${W}" height="10" fill="#7C5CFC"/>
+      <text x="${x + 14}" y="${y + 22}" font-size="14" font-weight="700" fill="#fff">${esc(b.name)}</text>
+      <text x="${x + 14}" y="${y + 40}" font-size="11" fill="#E4DCFF">${esc(trunc(describe(b), 52))}</text>`;
+    b.columns.forEach((c, j) => {
+      const cy = y + HEAD + j * RH + 14;
+      rowY[`${b.name}.${c.name}`] = {x, cy};
+      const isPk = pk(b.name, c.name), isFk = fk(b.name, c.name);
+      svg += `<text x="${x + 14}" y="${cy}" font-size="12" font-weight="${isPk || isFk ? 700 : 400}" fill="#1F1F29">${esc(c.name)}</text>
+        <text x="${x + W - 14}" y="${cy}" font-size="11" text-anchor="end" fill="#6B6B80">${esc(c.type.toLowerCase())}</text>`;
+      if (isPk) svg += `<rect x="${x + W - 108}" y="${cy - 11}" width="26" height="15" rx="4" fill="#EDE7FF"/><text x="${x + W - 95}" y="${cy}" font-size="10" font-weight="700" text-anchor="middle" fill="#5B3FD9">PK</text>`;
+      if (isFk) svg += `<rect x="${x + W - 108}" y="${cy - 11}" width="26" height="15" rx="4" fill="#DDF5F2"/><text x="${x + W - 95}" y="${cy}" font-size="10" font-weight="700" text-anchor="middle" fill="#0E9384">FK</text>`;
+    });
+  });
+  tests.filter(t => t.type === 'relationships').forEach(t => {
+    const parent = /ref\(['"](\w+)/.exec(t.args.to)[1];
+    const a = rowY[`${t.model}.${t.column}`], b = rowY[`${parent}.${t.args.field}`];
+    if (!a || !b) return;
+    const x1 = a.x + W, x2 = b.x, y1 = a.cy - 4, y2 = b.cy - 4, mx = (x1 + x2) / 2;
+    svg += `<path d="M${x1} ${y1}C${mx} ${y1},${mx} ${y2},${x2} ${y2}" fill="none" stroke="#0E9384" stroke-width="2"/>
+      <text x="${x1 + 8}" y="${y1 - 6}" font-size="12" font-weight="700" fill="#0E9384">*</text><text x="${x2 - 14}" y="${y2 - 6}" font-size="12" font-weight="700" fill="#0E9384">1</text>
+      <text x="${mx}" y="${Math.min(y1, y2) - 26}" font-size="11.5" text-anchor="middle" fill="#0E9384">many-to-one on ${esc(t.column)}</text>
+      <text x="${mx}" y="${Math.min(y1, y2) - 12}" font-size="10.5" text-anchor="middle" fill="#6B6B80">dbt relationships test + Power BI</text>`;
+  });
+  document.getElementById('er').innerHTML = svg + '</svg>';
+
+  const rows = Object.values(D.tables).map(t => {
+    const keys = t.columns.filter(c => pk(t.name, c.name)).map(c => `<span class="tag pk">PK</span><code>${c.name}</code>`);
+    const fks = t.columns.map(c => fk(t.name, c.name)).filter(Boolean).map(f => `<span class="tag fk">FK</span><code>${f.column}</code> → ${esc(/ref\(['"](\w+)/.exec(f.args.to)[1])}.${esc(f.args.field)}`);
+    return [`<code>${t.id}</code>`, keys.join(' ') || '<span class="muted">none declared</span>', fks.join('<br>') || '—', esc(describe(t))];
+  });
+  document.getElementById('keys').innerHTML = table(['Table', 'Primary key', 'Foreign key', 'Grain'], rows);
+  document.getElementById('pbirel').innerHTML = table(['From', 'To', 'Cardinality'],
+    D.powerbi.relationships.map(r => [`<code>${esc(r.from)}</code>`, `<code>${esc(r.to)}</code>`, esc(r.cardinality)])) +
+    '<p class="note">Power BI\'s hidden auto date tables are left out.</p>';
+  document.getElementById('measures').innerHTML = table(['Measure', 'Table', 'Format', 'DAX'],
+    D.powerbi.tables.flatMap(t => t.measures.map(m => [`<b>${esc(m.name)}</b>`, esc(t.name), `<code>${esc(m.format || '')}</code>`, `<pre style="margin:0;max-height:none">${esc(m.expression)}</pre>`])));
+}
+
+// ---------------------------------------------------------------- data quality
+function quality() {
+  const G = D.quality.gates;
+  const c = s => G.filter(g => g.status === s).length;
+  document.getElementById('dq-kpis').innerHTML = [
+    [`${c('pass')}/${G.length}`, 'gates passing', 'pass'], [c('warn'), 'warnings', c('warn') ? 'warn' : 'pass'], [c('fail'), 'failures', c('fail') ? 'fail' : 'pass'],
+    [G.filter(g => g.kind === 'dbt test').length, 'dbt tests re-run'], [when(D.built_at), 'checked at'],
+  ].map(([v, l, s]) => `<div class="kpi"><div class="v" style="${s ? `color:var(--${s === 'pass' ? 'good' : s === 'warn' ? 'warn' : 'bad'})` : ''}">${v}</div><div class="l">${l}</div></div>`).join('');
+  document.getElementById('gates').innerHTML = table(['Status', 'Type', 'Table', 'Column', 'Check', 'Result', 'How'],
+    G.map(g => [`<span class="pill ${g.status}">${g.status}</span>`, esc(g.kind), `<code>${esc(g.target)}</code>`, `<code>${esc(g.column)}</code>`, esc(g.check),
+      esc(g.value ?? (g.failures === 0 ? '0 failing rows' : `${num(g.failures)} failing rows`)), `<details><summary>${g.kind === 'dbt test' ? 'SQL' : 'how'}</summary><pre>${esc(g.sql)}</pre></details>`]));
+
+  // rows per run
+  const runs = D.quality.runs;
+  const med = [...runs.map(r => r.rows)].sort((a, b) => a - b)[Math.floor(runs.length / 2)] || 0;
+  const W = Math.max(document.getElementById('runs-chart').clientWidth, 600), H = 230, L = 44, B = 40, max = Math.max(...runs.map(r => r.rows), 1);
+  const bw = Math.min((W - L - 10) / Math.max(runs.length, 1), 56);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  [0, 0.5, 1].forEach(f => { const y = H - B - f * (H - B - 16); s += `<line x1="${L}" x2="${W - 10}" y1="${y}" y2="${y}" stroke="#ECECF3"/><text x="${L - 6}" y="${y + 4}" font-size="11" text-anchor="end" fill="#6B6B80">${Math.round(f * max)}</text>`; });
+  const yMed = H - B - med / max * (H - B - 16);
+  s += `<line x1="${L}" x2="${W - 10}" y1="${yMed}" y2="${yMed}" stroke="#7C5CFC" stroke-dasharray="4 4"/><text x="${W - 12}" y="${yMed - 5}" font-size="11" text-anchor="end" fill="#5B3FD9">median ${med}</text>`;
+  runs.forEach((r, i) => {
+    const h = r.rows / max * (H - B - 16), x = L + i * bw + 2, low = r.rows < med / 2;
+    const color = low ? '#E5484D' : r.currency === 'USD' ? '#7C5CFC' : '#2BB673';
+    s += `<rect x="${x}" y="${H - B - h}" width="${Math.max(bw - 4, 2)}" height="${h}" rx="2" fill="${color}"><title>${when(r.started)} · ${r.rows} rows · ${r.currency}</title></rect>`;
+    if (i % Math.ceil(runs.length / 8) === 0) s += `<text x="${x + bw / 2}" y="${H - B + 16}" font-size="11" text-anchor="middle" fill="#6B6B80">${new Date(r.started).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', timeZone: 'UTC'})}</text>`;
+  });
+  document.getElementById('runs-chart').innerHTML = s + '</svg>';
+  document.getElementById('runs-note').innerHTML = `${runs.length} runs, grouped by 30-minute gaps between scrapes. <span style="color:#7C5CFC">■</span> USD (GitHub's US runners) · <span style="color:#2BB673">■</span> GBP (local runs) · <span style="color:#E5484D">■</span> under half the median: worth checking that run's log.`;
+
+  // GitHub Actions runs
+  const gr = [...D.workflow_runs.runs].reverse();
+  const GW = Math.max(document.getElementById('gha-chart').clientWidth, 600), GH = 90, step = Math.min((GW - 20) / Math.max(gr.length, 1), 40);
+  let g = `<svg width="${GW}" height="${GH}" viewBox="0 0 ${GW} ${GH}">`;
+  gr.forEach((r, i) => {
+    const col = r.conclusion === 'success' ? '#2BB673' : r.conclusion === 'failure' ? '#E5484D' : '#A3A3B5';
+    g += `<a href="${esc(r.url)}" target="_blank"><rect x="${10 + i * step}" y="16" width="${Math.max(step - 3, 3)}" height="40" rx="3" fill="${col}"><title>${when(r.started)} · ${r.event} · ${r.conclusion} · ${r.minutes} min</title></rect></a>`;
+  });
+  if (gr.length) g += `<text x="10" y="76" font-size="11" fill="#6B6B80">${when(gr[0].started)}</text><text x="${10 + gr.length * step}" y="76" font-size="11" text-anchor="end" fill="#6B6B80">${when(gr.at(-1).started)}</text>`;
+  document.getElementById('gha-chart').innerHTML = g + '</svg>';
+  const by = k => gr.filter(r => r.conclusion === k).length;
+  document.getElementById('gha-note').innerHTML = D.workflow_runs.error ? `Could not reach the GitHub API: ${esc(D.workflow_runs.error)}` :
+    `<span style="color:#2BB673">■</span> ${by('success')} succeeded · <span style="color:#E5484D">■</span> ${by('failure')} failed · <span style="color:#A3A3B5">■</span> ${by('cancelled')} cancelled. Oldest on the left; click a bar to open the run. Early failures were during the 2026 rebuild.`;
+}
+
+// ---------------------------------------------------------------- catalog
+function catalog() {
+  const list = document.getElementById('tlist'), search = document.getElementById('search');
+  const tables = Object.values(D.tables);
+  const desc = (t, c) => (D.dbt.models[t.name]?.columns || D.dbt.sources[`${t.dataset}.${t.name}`]?.columns || {})[c] || c.bq_description || '';
+  const hl = (s, q) => q ? esc(s).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), m => `<mark>${m}</mark>`) : esc(s);
+  function draw() {
+    const q = search.value.trim().toLowerCase();
+    let html = '';
+    [...new Set(tables.map(t => t.dataset))].forEach(ds => {
+      const items = tables.filter(t => t.dataset === ds).map(t => {
+        const cols = q ? t.columns.filter(c => c.name.toLowerCase().includes(q) || desc(t, c.name).toLowerCase().includes(q)) : [];
+        const match = !q || t.name.toLowerCase().includes(q) || describe(t).toLowerCase().includes(q) || cols.length;
+        if (!match) return '';
+        return `<div class="item ${CAT.id === t.id ? 'active' : ''}" data-t="${t.id}">${hl(t.name, q)} <span class="muted" style="font-size:11.5px">${t.type === 'VIEW' ? 'view' : num(t.row_count)}</span></div>` +
+          cols.map(c => `<div class="hit" data-t="${t.id}" data-c="${c.name}">↳ ${hl(c.name, q)}</div>`).join('');
+      }).join('');
+      if (items) html += `<div class="ds">${ds}</div>${items}`;
+    });
+    list.innerHTML = html || '<p class="muted" style="padding:8px">No match.</p>';
+    list.querySelectorAll('[data-t]').forEach(el => el.onclick = () => goCatalog(el.dataset.t, el.dataset.c));
+  }
+  search.oninput = draw;
+  draw();
+  window.showTable = (id, col) => {
+    const t = D.tables[id] || tables[0];
+    CAT.id = t.id;
+    draw();
+    const lin = LINEAGE, nid = `rel:${t.dataset}.${t.name}`;
+    const up = lin && lin.byId[nid] ? [...lin.walk(nid, lin.inc)] : [], down = lin && lin.byId[nid] ? [...lin.walk(nid, lin.out)] : [];
+    const chips = ids => ids.length ? `<div class="chips">${ids.map(i => `<span class="chip" data-lin="${esc(i)}">${esc(lin.byId[i].label)}</span>`).join('')}</div>` : '<span class="muted">none</span>';
+    const writers = D.jobs.writes.filter(w => w.table === t.id);
+    const colRows = t.columns.map(c => {
+      const top = c.distinct < (t.row_count || 0) * 0.5 ? t.top_values?.[c.name] : null;
+      const values = top ? top.map(v => `<code>${esc(trunc(v.value, 28))}</code> <span class="muted">${num(v.count)}</span>`).join('<br>')
+        : c.min != null ? `<code>${esc(trunc(c.min, 19))}</code> → <code>${esc(trunc(c.max, 19))}</code>` : '';
+      return [`<b id="col-${esc(c.name)}">${esc(c.name)}</b>`, `<code>${esc(c.type)}</code>${c.mode === 'REQUIRED' ? ' <span class="muted">required</span>' : ''}`,
+        esc(desc(t, c.name)) || '<span class="pill warn">undocumented</span>', c.null_pct == null ? '—' : `${c.null_pct}%`, c.distinct ?? '—', values];
+    });
+    const sample = t.sample || [];
+    const sCols = sample.length ? Object.keys(sample[0]) : [];
+    document.getElementById('tdetail').innerHTML = `
+      <div class="card"><div class="kind muted" style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">${esc(t.dataset)} · ${t.type === 'VIEW' ? 'view' : 'table'}</div>
+        <h3 style="font-size:20px;margin:2px 0 6px">${esc(t.name)}</h3><p style="margin:0 0 12px">${esc(describe(t))}</p>
+        <div class="kpis" style="margin:0">
+          <div class="kpi"><div class="v">${num(t.row_count)}</div><div class="l">rows</div></div>
+          <div class="kpi"><div class="v">${t.columns.length}</div><div class="l">columns</div></div>
+          <div class="kpi"><div class="v">${t.type === 'VIEW' ? '—' : bytes(t.bytes)}</div><div class="l">stored</div></div>
+          <div class="kpi"><div class="v" style="font-size:15px">${ago(t.modified)}</div><div class="l">last modified</div></div>
+        </div>
+        <p class="note">${t.partitioning ? `Partitioned ${esc(t.partitioning)}${t.partition_expiry_days ? `, partitions expire after ${t.partition_expiry_days} days` : ''}. ` : ''}${t.clustering ? `Clustered by ${esc(t.clustering.join(', '))}. ` : ''}${writers.length ? 'Written by ' + writers.map(w => `<code>${esc(shortUser(w.user))}</code> (${esc(w.statement || w.job_type)} ×${w.count}, last ${ago(w.last)})`).join(', ') + '.' : ''}</p>
+        <div class="grid2"><div><h4 class="muted" style="font-size:12px;margin:8px 0 6px">UPSTREAM</h4>${chips(up)}</div><div><h4 class="muted" style="font-size:12px;margin:8px 0 6px">DOWNSTREAM</h4>${chips(down)}</div></div>
+      </div>
+      <div class="card"><h3>Columns</h3><div class="scroll">${table(['Column', 'Type', 'Description', 'Null', 'Distinct', 'Top values / range'], colRows)}</div></div>
+      <div class="card"><h3>Sample rows <span class="muted" style="font-weight:400;font-size:12.5px">latest ${sample.length}</span></h3><div class="scroll">${table(sCols, sample.map(r => sCols.map(k => esc(trunc(r[k], 40)))))}</div></div>`;
+    document.querySelectorAll('[data-lin]').forEach(el => el.onclick = () => { location.hash = 'lineage'; setTimeout(() => LINEAGE.select(el.dataset.lin), 0); });
+    if (col) { const cell = document.getElementById('col-' + col); if (cell) { const tr = cell.closest('tr'); tr.classList.add('flash'); tr.scrollIntoView({block: 'center'}); } }
+  };
+}
+
+// ---------------------------------------------------------------- routing
+const built = {};
+const CAT = {id: 'dbt_prod.fct_prices', col: null};
+function goCatalog(id, col) {
+  CAT.id = id; CAT.col = col || null;
+  if (location.hash === '#catalog') route(); else location.hash = 'catalog';
+}
+const pages = {architecture, lineage, calls, model, quality, catalog};
+function route() {
+  const page = location.hash.slice(1) || 'architecture';
+  const name = pages[page] ? page : 'architecture';
+  if (name === 'catalog' && !built.lineage) { lineage(); built.lineage = true; }
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
+  document.querySelectorAll('nav a').forEach(a2 => a2.classList.toggle('active', a2.getAttribute('href') === '#' + name));
+  if (!built[name]) { pages[name](); built[name] = true; }
+  if (name === 'catalog') { window.showTable(CAT.id, CAT.col); CAT.col = null; }
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
