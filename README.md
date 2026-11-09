@@ -60,7 +60,7 @@ dashboards/
   GPU_Price_Tracker.pbip              open this in Power BI Desktop
   GPU_Price_Tracker.Report/           report pages and visuals
   GPU_Price_Tracker.SemanticModel/    tables, relationship and DAX measures
-docs/                                 dashboard screenshot and the original ER diagram
+docs/dashboard.png                    dashboard screenshot
 ```
 
 ## Running it locally
