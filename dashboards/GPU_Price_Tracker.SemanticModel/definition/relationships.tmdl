@@ -1,0 +1,24 @@
+relationship 832e2c10-e5a4-4d69-9fcc-01a45f68fd3e
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_product.first_seen_at
+	toColumn: LocalDateTable_0f0a8d47-f683-4878-92ce-af2fd4f7c429.Date
+
+relationship a42033c2-cec0-4d80-a64a-bfa1c5feb81d
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_product.last_seen_at
+	toColumn: LocalDateTable_98d1e1b2-7365-437a-804e-db5561d77892.Date
+
+relationship 2bcb80c6-3e61-4ac7-a80f-7055d2bce043
+	joinOnDateBehavior: datePartOnly
+	fromColumn: fct_prices.scrape_time
+	toColumn: LocalDateTable_50fdff86-590a-4b28-926f-aa0ceafe0313.Date
+
+relationship 9133272d-9e08-43a2-8684-a93b087937df
+	joinOnDateBehavior: datePartOnly
+	fromColumn: fct_prices.scrape_date
+	toColumn: LocalDateTable_7ec115a2-b31c-4633-992f-fe98c92d576d.Date
+
+relationship AutoDetected_4e06dbe2-dbd1-4a51-a231-4190ea83f2f1
+	fromColumn: fct_prices.asin
+	toColumn: dim_product.asin
+

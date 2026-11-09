@@ -207,3 +207,8 @@ dbt_packages/
 logs/
 # end dbt Cloud content
 dbt_internal_packages/
+
+# Power BI project (PBIP): commit its JSON definition files,
+# but not the local cache/settings folder
+!dashboards/**/*.json
+.pbi/

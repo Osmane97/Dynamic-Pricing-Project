@@ -1,0 +1,25 @@
+model Model
+	culture: en-GB
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-GB
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["dim_product","fct_prices"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table dim_product
+ref table DateTableTemplate_fa7f9e33-6839-4e59-8ff7-50a52d56d55e
+ref table LocalDateTable_0f0a8d47-f683-4878-92ce-af2fd4f7c429
+ref table LocalDateTable_98d1e1b2-7365-437a-804e-db5561d77892
+ref table fct_prices
+ref table LocalDateTable_50fdff86-590a-4b28-926f-aa0ceafe0313
+ref table LocalDateTable_7ec115a2-b31c-4633-992f-fe98c92d576d
+
+ref cultureInfo en-GB
+
