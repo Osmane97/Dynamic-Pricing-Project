@@ -2,6 +2,8 @@
 
 An end-to-end data pipeline that tracks the prices of best-selling graphics cards on Amazon UK. A Python scraper runs every 6 hours, loads the results into BigQuery, dbt turns the raw scrapes into a dimension and a fact table, and a Power BI dashboard shows prices, price drops and price history.
 
+**[Live data toolkit](https://osmane97.github.io/Dynamic-Pricing-Project/)**: architecture, lineage, call graph, data model, data quality and catalog, generated from the running pipeline.
+
 ![Power BI dashboard](docs/dashboard.png)
 
 ## Architecture
@@ -60,6 +62,7 @@ dashboards/
   GPU_Price_Tracker.pbip              open this in Power BI Desktop
   GPU_Price_Tracker.Report/           report pages and visuals
   GPU_Price_Tracker.SemanticModel/    tables, relationship and DAX measures
+docs/index.html                       data toolkit site (generated, served by GitHub Pages)
 docs/dashboard.png                    dashboard screenshot
 ```
 
@@ -84,6 +87,24 @@ Requirements: Python 3.11+, Google Chrome, the [Google Cloud CLI](https://cloud.
    ```
 
 The dbt project lives in `dbt/` and runs in dbt Cloud. The dashboard opens from `dashboards/GPU_Price_Tracker.pbip`; it uses Import mode, so click **Refresh** to load the latest data.
+
+## Data toolkit
+
+`toolkit/build.py` generates a [one-page site](https://osmane97.github.io/Dynamic-Pricing-Project/) that documents the pipeline from what actually exists and runs, so it never drifts from reality:
+
+| Tab | Built from |
+|---|---|
+| Architecture | BigQuery's job log (which account wrote or read each table), the GitHub Actions workflow and run history, the Power BI data sources |
+| Lineage | The loader's target table, dbt `source()` / `ref()`, Power BI table sources, DAX references and the fields each visual uses; click any node for its upstream and downstream |
+| Call graph | The Python syntax tree of `src/` |
+| Data model | dbt key tests and the Power BI relationships |
+| Data quality | The dbt tests re-run against `dbt_prod`, plus freshness, volume, completeness, documentation and job-failure monitors |
+| Catalog | Every BigQuery table and column with its dbt description, profile, sample values and lineage |
+
+```bash
+pip install -r toolkit/requirements.txt
+python toolkit/build.py        # writes docs/index.html
+```
 
 ## Notes and limitations
 
