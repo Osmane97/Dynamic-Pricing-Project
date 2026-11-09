@@ -1,0 +1,187 @@
+table fct_prices
+	lineageTag: 284235a1-7f27-4538-b1bf-7b86aff16dbb
+
+	measure 'Avg Price' = AVERAGE(fct_prices[actual_price])
+		lineageTag: 45275dc9-aa5c-4e37-bc7b-2d047dd1614f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Lowest Price' = MIN(fct_prices[actual_price])
+		lineageTag: bd3fa313-2789-4465-ac7a-0c6b4cbbdc28
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Latest Price' = ```
+			
+			VAR last_scrape = MAX(fct_prices[scrape_time])
+			RETURN
+			    CALCULATE(AVERAGE(fct_prices[actual_price]), fct_prices[scrape_time] = last_scrape)
+			
+			```
+		lineageTag: b81fd4a8-69cc-48ac-bce0-25cd469e88a8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Products Tracked' = DISTINCTCOUNT(fct_prices[asin])
+		formatString: 0
+		lineageTag: b6d95f51-ae20-42f7-ab4e-d251fa5e3420
+
+	measure 'Last Updated' = MAX(fct_prices[scrape_time])
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: 912a1f3d-9adb-475d-aac3-8cd6202868d6
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Avg Current Price' = AVERAGEX(VALUES(fct_prices[asin]), [Latest Price])
+		formatString: #,0
+		lineageTag: d1c3355e-07a7-4680-8351-0d6825a50944
+
+	measure 'Price Drops' =
+			COUNTROWS(
+			    FILTER(
+			        VALUES(fct_prices[asin]),
+			        [Latest Price] < 0.99 * CALCULATE(MAX(fct_prices[actual_price]))
+			    )
+			) + 0
+		formatString: 0
+		lineageTag: 80056645-3f03-4f25-b1f0-4de10380bbb9
+
+	measure Price =
+			VAR p = [Avg Price]
+			RETURN IF(p <= 5000, p)
+		formatString: #,0.00
+		lineageTag: 87ac2912-5260-4199-a391-60c185da40ee
+
+	column price_id
+		dataType: string
+		lineageTag: a9643f80-5ae3-419b-96d4-c35566fd2ef9
+		summarizeBy: none
+		sourceColumn: price_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column asin
+		dataType: string
+		lineageTag: 5ed34729-707f-4865-9dcd-3662cc4e1312
+		summarizeBy: none
+		sourceColumn: asin
+
+		annotation SummarizationSetBy = Automatic
+
+	column scrape_time
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: acab8762-a37e-47c3-9212-8a8fdc3fd368
+		summarizeBy: none
+		sourceColumn: scrape_time
+
+		variation Variation
+			isDefault
+			relationship: 2bcb80c6-3e61-4ac7-a80f-7055d2bce043
+			defaultHierarchy: LocalDateTable_50fdff86-590a-4b28-926f-aa0ceafe0313.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column scrape_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 771eccf2-1b7f-4cb5-a2e5-58e22942f860
+		summarizeBy: none
+		sourceColumn: scrape_date
+
+		variation Variation
+			isDefault
+			relationship: 9133272d-9e08-43a2-8684-a93b087937df
+			defaultHierarchy: LocalDateTable_7ec115a2-b31c-4633-992f-fe98c92d576d.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column currency
+		dataType: string
+		lineageTag: 7ea30f31-8d7f-4789-8bf1-21dbf252b468
+		summarizeBy: none
+		sourceColumn: currency
+
+		annotation SummarizationSetBy = Automatic
+
+	column actual_price
+		dataType: double
+		lineageTag: 4fd01a79-a83e-46b3-b1f1-1417715559e5
+		summarizeBy: sum
+		sourceColumn: actual_price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column original_price
+		dataType: double
+		lineageTag: 248f3515-90cc-41de-8101-0a88c2d1dad8
+		summarizeBy: sum
+		sourceColumn: original_price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column discount_percent
+		dataType: int64
+		formatString: 0
+		lineageTag: 1fa0d1f3-5d92-4d3a-a028-14f679f74ce0
+		summarizeBy: sum
+		sourceColumn: discount_percent
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_discounted
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 6db07e3a-548f-4087-8398-9dfd34e145f1
+		summarizeBy: none
+		sourceColumn: is_discounted
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_month_sold
+		dataType: int64
+		formatString: 0
+		lineageTag: 6309c203-6478-4283-8ee7-8bac70e8359a
+		summarizeBy: sum
+		sourceColumn: last_month_sold
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_rating
+		dataType: double
+		lineageTag: 35da5934-ae6c-4bbe-b856-f72bf0b9d5ea
+		summarizeBy: sum
+		sourceColumn: product_rating
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column number_of_reviews
+		dataType: int64
+		formatString: 0
+		lineageTag: 99f2b255-25f6-4060-8e45-01ff3abbd1e9
+		summarizeBy: sum
+		sourceColumn: number_of_reviews
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_prices = m
+		mode: import
+		source =
+				let
+				    Source = GoogleBigQuery.Database([Implementation="2.0"]),
+				    #"dynamic-pricing-tracker_Database" = Source{[Name="dynamic-pricing-tracker",Kind="Database"]}[Data],
+				    dbt_prod_Schema = #"dynamic-pricing-tracker_Database"{[Name="dbt_prod",Kind="Schema"]}[Data],
+				    fct_prices_Table = dbt_prod_Schema{[Name="fct_prices",Kind="Table"]}[Data]
+				in
+				    fct_prices_Table
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "GPU_Price_Tracker"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "a807722a-2c0b-43ad-ba0d-4d36ade3500f"
+  }
+}

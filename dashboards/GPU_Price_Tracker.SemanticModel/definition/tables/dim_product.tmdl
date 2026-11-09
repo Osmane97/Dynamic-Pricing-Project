@@ -1,0 +1,143 @@
+table dim_product
+	lineageTag: 08836090-acb4-4860-a28d-d99e1d184a7b
+
+	column asin
+		dataType: string
+		lineageTag: 49a7e4d1-4f9b-49db-bd5b-e53ff09ae628
+		summarizeBy: none
+		sourceColumn: asin
+
+		annotation SummarizationSetBy = Automatic
+
+	column brand
+		dataType: string
+		lineageTag: 3c047146-61cf-42b7-a74f-473414feedf1
+		summarizeBy: none
+		sourceColumn: brand
+
+		annotation SummarizationSetBy = Automatic
+
+	column series
+		dataType: string
+		lineageTag: 522189a5-f3c8-4af6-9dd8-868b6e910836
+		summarizeBy: none
+		sourceColumn: series
+
+		annotation SummarizationSetBy = Automatic
+
+	column item_model_number
+		dataType: string
+		lineageTag: 54f64303-fdcc-4a6c-ac2c-123af81a56d6
+		summarizeBy: none
+		sourceColumn: item_model_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column graphics_coprocessor
+		dataType: string
+		lineageTag: 278892a4-8640-41ae-b4d8-930166d90f7e
+		summarizeBy: none
+		sourceColumn: graphics_coprocessor
+
+		annotation SummarizationSetBy = Automatic
+
+	column graphics_chipset_brand
+		dataType: string
+		lineageTag: fe8887b9-b2e0-4533-b1b6-ac0658c26880
+		summarizeBy: none
+		sourceColumn: graphics_chipset_brand
+
+		annotation SummarizationSetBy = Automatic
+
+	column graphics_ram_type
+		dataType: string
+		lineageTag: ea19c94e-8aeb-4613-b37c-84de37f2e8f0
+		summarizeBy: none
+		sourceColumn: graphics_ram_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column ram_gb
+		dataType: double
+		lineageTag: 37951dd8-5c34-4caa-988f-b9fc25a67a18
+		summarizeBy: sum
+		sourceColumn: ram_gb
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column memory_clock_speed
+		dataType: string
+		lineageTag: 8fab854b-9fe1-4105-aeab-b2f45af9c976
+		summarizeBy: none
+		sourceColumn: memory_clock_speed
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_dimensions
+		dataType: string
+		lineageTag: 7d83e8d8-cdad-4e45-ad04-61fbcfe74355
+		summarizeBy: none
+		sourceColumn: product_dimensions
+
+		annotation SummarizationSetBy = Automatic
+
+	column resolution
+		dataType: string
+		lineageTag: 2f699d64-2767-408e-b8f8-03acd68cc989
+		summarizeBy: none
+		sourceColumn: resolution
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_seen_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: b73c94d2-ab17-4712-a84e-16361689b591
+		summarizeBy: none
+		sourceColumn: first_seen_at
+
+		variation Variation
+			isDefault
+			relationship: 832e2c10-e5a4-4d69-9fcc-01a45f68fd3e
+			defaultHierarchy: LocalDateTable_0f0a8d47-f683-4878-92ce-af2fd4f7c429.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_seen_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 48ad0ce3-8a30-48c0-8877-9337311aa9a3
+		summarizeBy: none
+		sourceColumn: last_seen_at
+
+		variation Variation
+			isDefault
+			relationship: a42033c2-cec0-4d80-a64a-bfa1c5feb81d
+			defaultHierarchy: LocalDateTable_98d1e1b2-7365-437a-804e-db5561d77892.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column times_scraped
+		dataType: int64
+		formatString: 0
+		lineageTag: 6c3d1628-31bb-41b5-b333-bc738163ec41
+		summarizeBy: sum
+		sourceColumn: times_scraped
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_product = m
+		mode: import
+		source =
+				let
+				    Source = GoogleBigQuery.Database([Implementation="2.0"]),
+				    #"dynamic-pricing-tracker_Database" = Source{[Name="dynamic-pricing-tracker",Kind="Database"]}[Data],
+				    dbt_prod_Schema = #"dynamic-pricing-tracker_Database"{[Name="dbt_prod",Kind="Schema"]}[Data],
+				    dim_product_Table = dbt_prod_Schema{[Name="dim_product",Kind="Table"]}[Data]
+				in
+				    dim_product_Table
+
+	annotation PBI_ResultType = Table
+
